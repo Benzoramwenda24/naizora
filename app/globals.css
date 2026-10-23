@@ -143,3 +143,20 @@ header img, img[src*="logo"] {
   border-radius: 50% !important;
   object-fit: cover !important;
 }
+header span, 
+header a span, 
+header [class*="title"], 
+header [class*="logo"] span {
+  font-size: 0 !important;
+}
+
+header span::after, 
+header a span::after, 
+header [class*="title"]::after, 
+header [class*="logo"] span::after {
+  content: "NAizoRA" !important;
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  color: inherit !important;
+}
