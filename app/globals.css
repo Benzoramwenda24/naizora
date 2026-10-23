@@ -143,21 +143,3 @@ header img, img[src*="logo"] {
   border-radius: 50% !important;
   object-fit: cover !important;
 }
-/* Hide ONLY the top-left brand title text next to the logo image */
-header > div:first-child a span,
-header > div:first-child span,
-header a[href="/"] span,
-header a[href="#"] span {
-  font-size: 0 !important;
-}
-
-header > div:first-child a span::after,
-header > div:first-child span::after,
-header a[href="/"] span::after,
-header a[href="#"] span::after {
-  content: "NAizoRA" !important;
-  font-size: 1.125rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.05em !important;
-  color: inherit !important;
-}
