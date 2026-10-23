@@ -136,6 +136,10 @@
 }
 
 header img, img[src*="logo"] {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
   border-radius: 50% !important;
-  object-fit: cover;
+  object-fit: cover !important;
 }
