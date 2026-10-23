@@ -134,3 +134,8 @@
     @apply bg-background text-foreground;
   }
 }
+
+header img, img[src*="logo"] {
+  border-radius: 50% !important;
+  object-fit: cover;
+}
