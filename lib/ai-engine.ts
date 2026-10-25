@@ -30,9 +30,9 @@ export class AITradingEngine {
   private stats: TradeStats;
   private ws: WebSocket | null = null;
   private isRunning: boolean = false;
+  private isAuthorized: boolean = false;
   private isContractActive: boolean = false;
   private currentSymbol: string;
-  private messageHandler: ((event: MessageEvent) => void) | null = null;
 
   constructor(settings: AISettings, callback: (stats: TradeStats, log: string) => void) {
     this.settings = settings;
@@ -51,36 +51,42 @@ export class AITradingEngine {
 
   public startTrading() {
     this.isRunning = true;
+    this.isAuthorized = false;
     this.isContractActive = false;
     this.currentSymbol = this.settings.symbol;
     this.stats.status = 'RUNNING';
-    this.callback(this.stats, 'Connecting to system trading stream...');
+    this.callback(this.stats, 'Connecting bot to Deriv API...');
 
-    // Use the main platform's shared active WebSocket connection if available
-    const globalWin = window as unknown as { derivWS?: WebSocket };
-    if (globalWin.derivWS && globalWin.derivWS.readyState === WebSocket.OPEN) {
-      this.ws = globalWin.derivWS;
-      this.callback(this.stats, 'Connected via system stream. Executing trade...');
-      this.setupListenerAndTrade();
-    } else {
-      this.ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+    // Open a dedicated independent WebSocket for the bot
+    this.ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
 
-      this.ws.onopen = () => {
-        this.callback(this.stats, 'Connected. Authorizing session...');
-        this.authorize();
-      };
+    this.ws.onopen = () => {
+      this.callback(this.stats, 'Connected. Authorizing account...');
+      this.authorize();
+    };
 
-      this.ws.onclose = () => {
-        if (this.isRunning) {
-          this.callback(this.stats, 'Stream closed. Reconnecting...');
-          setTimeout(() => {
-            if (this.isRunning) this.startTrading();
-          }, 1500);
-        }
-      };
+    this.ws.onmessage = (event: MessageEvent) => {
+      if (!this.isRunning) return;
+      try {
+        const data = JSON.parse(event.data);
+        this.handleMessage(data);
+      } catch (e) {
+        console.error('Parsing error:', e);
+      }
+    };
 
-      this.setupListenerAndTrade();
-    }
+    this.ws.onerror = () => {
+      this.callback(this.stats, 'WebSocket connection error.');
+    };
+
+    this.ws.onclose = () => {
+      if (this.isRunning) {
+        this.callback(this.stats, 'Connection closed. Reconnecting...');
+        setTimeout(() => {
+          if (this.isRunning) this.startTrading();
+        }, 2000);
+      }
+    };
   }
 
   private getToken(): string {
@@ -118,31 +124,9 @@ export class AITradingEngine {
     const token = this.getToken();
     if (token) {
       this.ws.send(JSON.stringify({ authorize: token }));
-    }
-  }
-
-  private setupListenerAndTrade() {
-    if (!this.ws) return;
-
-    this.messageHandler = (event: MessageEvent) => {
-      if (!this.isRunning) return;
-      try {
-        const data = JSON.parse(event.data);
-        this.handleMessage(data);
-      } catch (e) {
-        console.error('Parsing error:', e);
-      }
-    };
-
-    this.ws.addEventListener('message', this.messageHandler);
-
-    if (this.ws.readyState === WebSocket.OPEN) {
-      this.authorize();
-      setTimeout(() => {
-        if (this.isRunning && !this.isContractActive) {
-          this.requestProposal();
-        }
-      }, 500);
+    } else {
+      this.callback(this.stats, 'Error: No active login token found. Please sign in.');
+      this.stopTrading();
     }
   }
 
@@ -151,10 +135,12 @@ export class AITradingEngine {
 
     if (msgType === 'authorize') {
       if (data.authorize) {
-        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Placing trade...`);
-        if (!this.isContractActive && this.isRunning) {
-          this.requestProposal();
-        }
+        this.isAuthorized = true;
+        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Placing initial trade...`);
+        this.requestProposal();
+      } else if (data.error) {
+        this.callback(this.stats, `Authorization failed: ${data.error.message}`);
+        this.stopTrading();
       }
     } else if (msgType === 'proposal') {
       if (data.proposal && data.proposal.id && this.isRunning && !this.isContractActive) {
@@ -172,7 +158,7 @@ export class AITradingEngine {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ proposal_open_contract: 1, contract_id: data.buy.contract_id, subscribe: 1 }));
         }
-        this.callback(this.stats, `Trade active on [${this.currentSymbol}] ($${this.stats.currentStake.toFixed(2)}). Waiting result...`);
+        this.callback(this.stats, `Trade active on [${this.currentSymbol}] | Stake: $${this.stats.currentStake.toFixed(2)}. Waiting result...`);
       } else if (data.error) {
         this.callback(this.stats, `Buy error: ${data.error.message}`);
         this.isContractActive = false;
@@ -194,7 +180,7 @@ export class AITradingEngine {
           this.stats.currentStake = this.settings.stake;
           this.stats.isRecovering = false;
           this.currentSymbol = this.settings.symbol; // Return to primary market on win
-          this.callback(this.stats, `WIN! +$${profit.toFixed(2)}. Primary market [${this.currentSymbol}].`);
+          this.callback(this.stats, `WIN! +$${profit.toFixed(2)}. Back to primary market [${this.currentSymbol}].`);
         } else {
           this.stats.losses++;
           if (this.settings.useRecovery) {
@@ -223,9 +209,9 @@ export class AITradingEngine {
           return;
         }
 
-        // Instantly trigger next trade round
+        // Instantly request next trade
         setTimeout(() => {
-          if (this.isRunning && !this.isContractActive) {
+          if (this.isRunning && !this.isContractActive && this.isAuthorized) {
             this.requestProposal();
           }
         }, 500);
@@ -234,7 +220,7 @@ export class AITradingEngine {
   }
 
   private requestProposal() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive || !this.isRunning) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive || !this.isRunning || !this.isAuthorized) return;
 
     let contractType = 'DIGITMATCH';
     if (this.settings.tradeType === 'DIFFERS') contractType = 'DIGITDIFF';
@@ -274,13 +260,16 @@ export class AITradingEngine {
 
   public stopTrading() {
     this.isRunning = false;
+    this.isAuthorized = false;
     this.isContractActive = false;
     if (this.stats.status === 'RUNNING') {
       this.stats.status = 'STOPPED';
     }
-    if (this.ws && this.messageHandler) {
-      this.ws.removeEventListener('message', this.messageHandler);
-      this.messageHandler = null;
+    if (this.ws) {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.close();
+      }
+      this.ws = null;
     }
     this.callback(this.stats, 'Bot stopped immediately.');
   }
