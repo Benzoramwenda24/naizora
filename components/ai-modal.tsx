@@ -82,7 +82,7 @@ export default function AIModal() {
       setShowAuthPrompt(true); // Show notification prompt if not logged in
     } else {
       setShowAuthPrompt(false);
-      setIsOpen(!isOpen); // Open embedded DBot modal if logged in
+      setIsOpen(!isOpen); // Open centered DBot modal if logged in
     }
   };
 
@@ -157,40 +157,49 @@ export default function AIModal() {
         </div>
       )}
 
-      {/* Embedded DBot Workspace Modal (For Logged-in Users) */}
+      {/* Centered Large DBot Workspace Modal (For Logged-in Users) */}
       {isOpen && (
-        <div className="fixed bottom-28 right-6 z-50 w-[580px] max-w-[96vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md animate-fadeIn">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 bg-[#111622] border-b border-gray-800">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <h3 className="font-bold text-xs tracking-wider uppercase text-emerald-400">Deriv DBot Studio (On-Site)</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-5xl h-[85vh] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 bg-[#111622] border-b border-gray-800">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                <h3 className="font-bold text-sm tracking-wider uppercase text-emerald-400">Deriv DBot Studio (On-Site Workspace)</h3>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.open('https://bot.deriv.com', '_blank')}
+                  className="text-xs bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-all font-medium"
+                >
+                  Pop Out ↗
+                </button>
+                <button 
+                  onClick={() => setIsOpen(false)} 
+                  className="text-gray-400 hover:text-white text-xl font-bold px-2 py-0.5 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-all"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => window.open('https://bot.deriv.com', '_blank')}
-                className="text-[10px] bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/30 transition-all"
-              >
-                Pop Out ↗
-              </button>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-lg font-bold px-1">✕</button>
+
+            {/* Embedded DBot Iframe Container */}
+            <div className="flex-1 w-full bg-black relative">
+              <iframe
+                src="https://bot.deriv.com"
+                className="w-full h-full border-0"
+                title="Deriv DBot"
+                loading="lazy"
+              />
             </div>
-          </div>
 
-          {/* Embedded DBot Iframe Container */}
-          <div className="w-full h-[540px] bg-black relative">
-            <iframe
-              src="https://bot.deriv.com"
-              className="w-full h-full border-0"
-              title="Deriv DBot"
-              loading="lazy"
-            />
-          </div>
-
-          {/* Footer Note */}
-          <div className="px-4 py-2 bg-[#111622] border-t border-gray-800 text-[10px] text-gray-400 flex justify-between items-center">
-            <span>Integrated official trading environment</span>
-            <span className="text-emerald-400 font-semibold">Active Session</span>
+            {/* Footer Note */}
+            <div className="px-6 py-3 bg-[#111622] border-t border-gray-800 text-xs text-gray-400 flex justify-between items-center">
+              <span>Configure your strategies, set parameters, and execute trades comfortably.</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> Active Trading Session
+              </span>
+            </div>
           </div>
         </div>
       )}
