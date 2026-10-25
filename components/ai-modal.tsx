@@ -1,13 +1,18 @@
 // components/ai-modal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AITradingEngine, AISettings, TradeStats, TradeCategory } from '@/lib/ai-engine';
 
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [isTrading, setIsTrading] = useState(false);
   const [log, setLog] = useState<string>('Configure your AI settings and click trade.');
+
+  // Draggable Button Position State
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Collapsible Toggles for Optional Sections
   const [showEntryConfig, setShowEntryConfig] = useState(false);
@@ -41,6 +46,48 @@ export default function AIModal() {
 
   const [engineInstance, setEngineInstance] = useState<AITradingEngine | null>(null);
 
+  // Handle Dragging (Mouse & Touch support for Mobile/Desktop)
+  const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
+    const rect = target.getBoundingClientRect();
+    setIsDragging(true);
+    setDragOffset({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    });
+  };
+
+  const handleMove = (clientX: number, clientY: number) => {
+    if (!isDragging) return;
+    const newX = clientX - dragOffset.x;
+    const newY = clientY - dragOffset.y;
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleEnd = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onUp = () => handleEnd();
+
+    if (isDragging) {
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchmove', onTouchMove);
+      window.addEventListener('touchend', onUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [isDragging, dragOffset]);
+
   const handleToggleTrade = () => {
     if (isTrading) {
       engineInstance?.stopTrading();
@@ -65,22 +112,39 @@ export default function AIModal() {
 
   return (
     <>
-      {/* Floating Button: Blue with italicized white text */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 flex items-center justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white shadow-2xl rounded-full transition-all duration-200 transform hover:scale-105 border border-blue-400/40"
+      {/* Draggable & Blinking Floating Button */}
+      <div
+        style={
+          position
+            ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
+            : { bottom: '24px', right: '24px' }
+        }
+        className="fixed z-50 cursor-pointer select-none touch-none"
+        onMouseDown={(e) => handleTouchOrMouseDown(e.clientX, e.clientY, e.currentTarget)}
+        onTouchStart={(e) => {
+          if (e.touches[0]) handleTouchOrMouseDown(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
+        }}
       >
-        <span className="italic font-bold text-base tracking-wide flex items-center gap-2">
-          <svg className="w-5 h-5 text-blue-200 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 100-2h-1a1 1 0 100 2h1zM5.757 15.657a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM6 10a1 1 0 100-2H5a1 1 0 100 2h1zM5.757 4.343a1 1 0 00-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707z" />
-          </svg>
-          use ai
-        </span>
-      </button>
+        <button
+          onClick={(e) => {
+            // Prevent opening modal if user was dragging
+            if (!isDragging) setIsOpen(!isOpen);
+          }}
+          className="flex items-center justify-center px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_25px_rgba(37,99,235,0.8)] rounded-full transition-transform duration-150 transform hover:scale-110 border-2 border-blue-300 animate-pulse"
+        >
+          <span className="italic font-bold text-base tracking-wide flex items-center gap-2 drop-shadow-md">
+            <svg className="w-5 h-5 text-blue-200 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            use ai
+          </span>
+        </button>
+      </div>
 
       {/* Main Configuration Modal */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 z-50 w-[400px] max-w-[92vw] bg-black text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md">
+        <div className="fixed bottom-24 right-6 z-50 w-[400px] max-w-[92vw] bg-black text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 bg-gray-900 border-b border-gray-800">
             <div className="flex items-center gap-2">
