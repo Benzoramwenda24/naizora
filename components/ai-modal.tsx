@@ -112,44 +112,70 @@ export default function AIModal() {
 
   return (
     <>
-      {/* Draggable & Blinking Floating Button */}
+      {/* Draggable, Perfect Circle, Deep Blue Floating Button with Smooth Slow Green Glow */}
       <div
         style={
           position
             ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
-            : { bottom: '24px', right: '24px' }
+            : { bottom: '28px', right: '28px' }
         }
-        className="fixed z-50 cursor-pointer select-none touch-none"
+        className="fixed z-50 cursor-pointer select-none touch-none group"
         onMouseDown={(e) => handleTouchOrMouseDown(e.clientX, e.clientY, e.currentTarget)}
         onTouchStart={(e) => {
           if (e.touches[0]) handleTouchOrMouseDown(e.touches[0].clientX, e.touches[0].clientY, e.currentTarget);
         }}
       >
         <button
-          onClick={(e) => {
-            // Prevent opening modal if user was dragging
+          onClick={() => {
             if (!isDragging) setIsOpen(!isOpen);
           }}
-          className="flex items-center justify-center px-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_25px_rgba(37,99,235,0.8)] rounded-full transition-transform duration-150 transform hover:scale-110 border-2 border-blue-300 animate-pulse"
+          style={{
+            animation: 'slowGreenPulse 3.5s infinite ease-in-out',
+          }}
+          className="w-20 h-20 bg-[#0B192C] hover:bg-[#1E3E62] text-white rounded-full flex flex-col items-center justify-center p-2 transition-all duration-300 transform group-hover:scale-105 border-2 border-emerald-500/60 shadow-xl"
         >
-          <span className="italic font-bold text-base tracking-wide flex items-center gap-2 drop-shadow-md">
-            <svg className="w-5 h-5 text-blue-200 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+          <svg
+            className="w-5 h-5 text-emerald-400 mb-0.5 transition-transform duration-300 group-hover:rotate-12"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M13 10V3L4 14h7v7l9-11h-7z"
+            />
+          </svg>
+          <span className="italic font-extrabold text-[12px] text-white tracking-wide leading-none">
             use ai
           </span>
         </button>
+
+        {/* CSS Keyframe Animation for Very Slow, Elegant Green Pulse */}
+        <style jsx>{`
+          @keyframes slowGreenPulse {
+            0% {
+              box-shadow: 0 0 8px rgba(16, 185, 129, 0.25), 0 0 0 0 rgba(16, 185, 129, 0.3);
+            }
+            50% {
+              box-shadow: 0 0 22px rgba(16, 185, 129, 0.75), 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+              box-shadow: 0 0 8px rgba(16, 185, 129, 0.25), 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+          }
+        `}</style>
       </div>
 
       {/* Main Configuration Modal */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[400px] max-w-[92vw] bg-black text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md">
+        <div className="fixed bottom-28 right-6 z-50 w-[400px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 bg-gray-900 border-b border-gray-800">
+          <div className="flex items-center justify-between px-5 py-4 bg-[#111622] border-b border-gray-800">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-blue-500 animate-ping" />
-              <h3 className="font-bold text-sm tracking-wider uppercase text-blue-400">AI Professional Suite</h3>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <h3 className="font-bold text-sm tracking-wider uppercase text-emerald-400">AI Professional Suite</h3>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-lg font-bold">✕</button>
           </div>
@@ -163,7 +189,7 @@ export default function AIModal() {
                   disabled={isTrading}
                   value={settings.symbol}
                   onChange={(e) => setSettings({ ...settings, symbol: e.target.value })}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none"
+                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
                 >
                   <option value="R_100">Volatility 100 Index</option>
                   <option value="R_75">Volatility 75 Index</option>
@@ -181,7 +207,7 @@ export default function AIModal() {
                   disabled={isTrading}
                   value={settings.stake}
                   onChange={(e) => setSettings({ ...settings, stake: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none"
+                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
                 />
               </div>
             </div>
@@ -194,7 +220,7 @@ export default function AIModal() {
                   disabled={isTrading}
                   value={settings.tradeType}
                   onChange={(e) => setSettings({ ...settings, tradeType: e.target.value as TradeCategory })}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none"
+                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
                 >
                   <option value="MATCHES">Matches</option>
                   <option value="DIFFERS">Differs</option>
@@ -214,13 +240,13 @@ export default function AIModal() {
                   disabled={isTrading || ['EVEN', 'ODD'].includes(settings.tradeType)}
                   value={settings.barrier}
                   onChange={(e) => setSettings({ ...settings, barrier: parseInt(e.target.value, 10) || 0 })}
-                  className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none disabled:opacity-50"
+                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none disabled:opacity-50"
                 />
               </div>
             </div>
 
             {/* OPTIONAL SECTION 1: Entry Digit Condition Toggle */}
-            <div className="border border-gray-800 rounded-xl p-3 bg-gray-900/50">
+            <div className="border border-gray-800 rounded-xl p-3 bg-[#111622]/60">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-300">Entry Digit Filter Condition</span>
                 <button
@@ -232,7 +258,7 @@ export default function AIModal() {
                     setSettings({ ...settings, useEntryCondition: newState });
                   }}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    showEntryConfig ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                    showEntryConfig ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
                   }`}
                 >
                   {showEntryConfig ? 'CLOSE' : 'OPEN'}
@@ -249,7 +275,7 @@ export default function AIModal() {
                     disabled={isTrading}
                     value={settings.entryDigit}
                     onChange={(e) => setSettings({ ...settings, entryDigit: parseInt(e.target.value, 10) || 0 })}
-                    className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none text-sm"
+                    className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm"
                   />
                 </div>
               )}
@@ -264,12 +290,12 @@ export default function AIModal() {
                 disabled={isTrading}
                 value={settings.martingaleMultiplier}
                 onChange={(e) => setSettings({ ...settings, martingaleMultiplier: parseFloat(e.target.value) || 1 })}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none"
+                className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
               />
             </div>
 
             {/* OPTIONAL SECTION 2: Recovery Settings Toggle */}
-            <div className="border border-gray-800 rounded-xl p-3 bg-gray-900/50">
+            <div className="border border-gray-800 rounded-xl p-3 bg-[#111622]/60">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-xs font-semibold text-gray-300">Recovery Strategy on Loss</span>
@@ -284,7 +310,7 @@ export default function AIModal() {
                     setSettings({ ...settings, useRecovery: newState });
                   }}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    showRecoveryConfig ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                    showRecoveryConfig ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
                   }`}
                 >
                   {showRecoveryConfig ? 'CLOSE' : 'OPEN'}
@@ -299,7 +325,7 @@ export default function AIModal() {
                       disabled={isTrading}
                       value={settings.recoveryTradeType}
                       onChange={(e) => setSettings({ ...settings, recoveryTradeType: e.target.value as TradeCategory })}
-                      className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none text-sm"
+                      className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm"
                     >
                       <option value="MATCHES">Matches</option>
                       <option value="DIFFERS">Differs</option>
@@ -318,7 +344,7 @@ export default function AIModal() {
                       disabled={isTrading || ['EVEN', 'ODD'].includes(settings.recoveryTradeType)}
                       value={settings.recoveryBarrier}
                       onChange={(e) => setSettings({ ...settings, recoveryBarrier: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none text-sm"
+                      className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm"
                     />
                   </div>
                 </div>
@@ -328,50 +354,50 @@ export default function AIModal() {
             {/* Take Profit & Stop Loss */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-green-400 mb-1">Take Profit ($)</label>
+                <label className="block text-xs text-emerald-400 mb-1">Take Profit ($)</label>
                 <input
                   type="number"
                   disabled={isTrading}
                   value={settings.takeProfit}
                   onChange={(e) => setSettings({ ...settings, takeProfit: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-gray-900 border border-green-900/50 rounded-lg px-3 py-2 text-white focus:border-green-500 outline-none"
+                  className="w-full bg-[#111622] border border-emerald-900/50 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs text-red-400 mb-1">Stop Loss ($)</label>
+                <label className="block text-xs text-rose-400 mb-1">Stop Loss ($)</label>
                 <input
                   type="number"
                   disabled={isTrading}
                   value={settings.stopLoss}
                   onChange={(e) => setSettings({ ...settings, stopLoss: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-gray-900 border border-red-900/50 rounded-lg px-3 py-2 text-white focus:border-red-500 outline-none"
+                  className="w-full bg-[#111622] border border-rose-900/50 rounded-lg px-3 py-2 text-white focus:border-rose-500 outline-none"
                 />
               </div>
             </div>
 
             {/* Performance Stats */}
-            <div className="bg-gray-900 rounded-xl p-3 border border-gray-800 space-y-2">
+            <div className="bg-[#111622] rounded-xl p-3 border border-gray-800 space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-400">Trades: <strong className="text-white">{stats.totalTrades}</strong></span>
-                <span className="text-green-400">Wins: <strong>{stats.wins}</strong></span>
-                <span className="text-red-400">Losses: <strong>{stats.losses}</strong></span>
+                <span className="text-emerald-400">Wins: <strong>{stats.wins}</strong></span>
+                <span className="text-rose-400">Losses: <strong>{stats.losses}</strong></span>
               </div>
               <div className="flex justify-between text-xs pt-1 border-t border-gray-800">
                 <span className="text-gray-400">Net P/L:</span>
-                <span className={`font-bold ${stats.totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`font-bold ${stats.totalProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                   ${stats.totalProfit.toFixed(2)}
                 </span>
               </div>
               {stats.isRecovering && (
-                <div className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider text-center pt-1 animate-pulse">
+                <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider text-center pt-1 animate-pulse">
                   ⚠️ Recovery Strategy Active
                 </div>
               )}
             </div>
 
             {/* Log Terminal */}
-            <div className="p-3 bg-black border border-gray-800 rounded-lg font-mono text-xs text-blue-300 min-h-[48px] flex items-center">
+            <div className="p-3 bg-black border border-gray-800 rounded-lg font-mono text-xs text-emerald-300 min-h-[48px] flex items-center">
               {log}
             </div>
 
@@ -380,8 +406,8 @@ export default function AIModal() {
               onClick={handleToggleTrade}
               className={`w-full py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 shadow-lg ${
                 isTrading
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-green-600 hover:bg-green-700 text-white'
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
             >
               {isTrading ? 'CLICK TO STOP' : 'CLICK TO TRADE'}
