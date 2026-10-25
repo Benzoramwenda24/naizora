@@ -6,6 +6,8 @@ import { AITradingEngine, AISettings, TradeStats, TradeCategory } from '@/lib/ai
 
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [isTrading, setIsTrading] = useState(false);
   const [log, setLog] = useState<string>('Configure your AI settings and click trade.');
 
@@ -15,8 +17,7 @@ export default function AIModal() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Collapsible Toggles for Optional Sections
-  const [showEntryConfig, setShowEntryConfig] = useState(false);
-  const [showRecoveryConfig, setShowRecoveryConfig] = useState(false);
+  const [showEntryConfig, setShowEntryConfig] = useState(true); // Default active as requested
 
   // User Settings State
   const [settings, setSettings] = useState<AISettings>({
@@ -24,14 +25,12 @@ export default function AIModal() {
     stake: 10,
     tradeType: 'MATCHES',
     barrier: 5,
-    useEntryCondition: false,
+    useEntryCondition: true,
     entryDigit: 5,
     martingaleMultiplier: 2.0,
     takeProfit: 50,
     stopLoss: 20,
-    useRecovery: false,
-    recoveryTradeType: 'DIFFERS',
-    recoveryBarrier: 5,
+    useRecovery: true,
   });
 
   const [stats, setStats] = useState<TradeStats>({
@@ -46,7 +45,19 @@ export default function AIModal() {
 
   const [engineInstance, setEngineInstance] = useState<AITradingEngine | null>(null);
 
-  // Handle Dragging (Mouse & Touch support for Mobile/Desktop)
+  // Check authentication status on mount and storage changes
+  useEffect(() => {
+    const checkAuth = () => {
+      const activeLogin = localStorage.getItem('active_loginid');
+      const hasToken = Object.keys(localStorage).some((k) => k.includes('token') || k.includes('client'));
+      setIsLoggedIn(Boolean(activeLogin || hasToken));
+    };
+    checkAuth();
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
+  }, []);
+
+  // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
     setIsDragging(true);
@@ -88,6 +99,15 @@ export default function AIModal() {
     };
   }, [isDragging, dragOffset]);
 
+  const handleButtonClick = () => {
+    if (isDragging) return;
+    if (!isLoggedIn) {
+      setShowAuthPrompt(true);
+    } else {
+      setIsOpen(!isOpen);
+    }
+  };
+
   const handleToggleTrade = () => {
     if (isTrading) {
       engineInstance?.stopTrading();
@@ -112,7 +132,7 @@ export default function AIModal() {
 
   return (
     <>
-      {/* Draggable, Perfect Circle, Deep Blue Floating Button with Smooth Slow Green Glow */}
+      {/* Draggable, Perfect Circle, Deep Blue Floating Button with Slow Green Glow */}
       <div
         style={
           position
@@ -126,9 +146,7 @@ export default function AIModal() {
         }}
       >
         <button
-          onClick={() => {
-            if (!isDragging) setIsOpen(!isOpen);
-          }}
+          onClick={handleButtonClick}
           style={{
             animation: 'slowGreenPulse 3.5s infinite ease-in-out',
           }}
@@ -152,7 +170,6 @@ export default function AIModal() {
           </span>
         </button>
 
-        {/* CSS Keyframe Animation for Very Slow, Elegant Green Pulse */}
         <style jsx>{`
           @keyframes slowGreenPulse {
             0% {
@@ -168,8 +185,42 @@ export default function AIModal() {
         `}</style>
       </div>
 
+      {/* Authentication Prompt Modal (When Signed Out) */}
+      {showAuthPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg">
+              AI
+            </div>
+            <h3 className="font-bold text-lg text-emerald-400">Authentication Required</h3>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              You must be signed in to your account to configure and run the AI Trading Assistant. Please sign in or sign up to continue.
+            </p>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setShowAuthPrompt(false);
+                  const loginBtn = document.querySelector('button[class*="login"], a[href*="login"]') as HTMLElement;
+                  if (loginBtn) loginBtn.click();
+                  else window.location.href = '/login';
+                }}
+                className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all"
+              >
+                Sign In / Up
+              </button>
+              <button
+                onClick={() => setShowAuthPrompt(false)}
+                className="py-2.5 bg-[#111622] hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs tracking-wide transition-all border border-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Configuration Modal */}
-      {isOpen && (
+      {isOpen && isLoggedIn && (
         <div className="fixed bottom-28 right-6 z-50 w-[400px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 bg-[#111622] border-b border-gray-800">
@@ -189,14 +240,18 @@ export default function AIModal() {
                   disabled={isTrading}
                   value={settings.symbol}
                   onChange={(e) => setSettings({ ...settings, symbol: e.target.value })}
-                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
+                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-xs"
                 >
                   <option value="R_100">Volatility 100 Index</option>
+                  <option value="1HZ100V">Volatility 100 (1s)</option>
                   <option value="R_75">Volatility 75 Index</option>
+                  <option value="1HZ75V">Volatility 75 (1s)</option>
                   <option value="R_50">Volatility 50 Index</option>
+                  <option value="1HZ50V">Volatility 50 (1s)</option>
                   <option value="R_25">Volatility 25 Index</option>
+                  <option value="1HZ25V">Volatility 25 (1s)</option>
                   <option value="R_10">Volatility 10 Index</option>
-                  <option value="1HZ10V">1-Sec Volatility 10</option>
+                  <option value="1HZ10V">Volatility 10 (1s)</option>
                 </select>
               </div>
 
@@ -245,110 +300,48 @@ export default function AIModal() {
               </div>
             </div>
 
-            {/* OPTIONAL SECTION 1: Entry Digit Condition Toggle */}
-            <div className="border border-gray-800 rounded-xl p-3 bg-[#111622]/60">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-300">Entry Digit Filter Condition</span>
-                <button
-                  type="button"
-                  disabled={isTrading}
-                  onClick={() => {
-                    const newState = !showEntryConfig;
-                    setShowEntryConfig(newState);
-                    setSettings({ ...settings, useEntryCondition: newState });
-                  }}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    showEntryConfig ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {showEntryConfig ? 'CLOSE' : 'OPEN'}
-                </button>
-              </div>
-
-              {showEntryConfig && (
-                <div className="mt-3 pt-3 border-t border-gray-800">
-                  <label className="block text-xs text-gray-400 mb-1">Enter Trade Only When Last Digit Is:</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="9"
-                    disabled={isTrading}
-                    value={settings.entryDigit}
-                    onChange={(e) => setSettings({ ...settings, entryDigit: parseInt(e.target.value, 10) || 0 })}
-                    className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Martingale Multiplier */}
-            <div>
-              <label className="block text-xs text-gray-400 mb-1">Martingale Multiplier</label>
-              <input
-                type="number"
-                step="0.1"
-                disabled={isTrading}
-                value={settings.martingaleMultiplier}
-                onChange={(e) => setSettings({ ...settings, martingaleMultiplier: parseFloat(e.target.value) || 1 })}
-                className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
-              />
-            </div>
-
-            {/* OPTIONAL SECTION 2: Recovery Settings Toggle */}
-            <div className="border border-gray-800 rounded-xl p-3 bg-[#111622]/60">
-              <div className="flex items-center justify-between">
+            {/* Entry Digit Filter Condition */}
+            <div className="border border-emerald-900/50 rounded-xl p-3 bg-[#111622]/60">
+              <div className="flex items-center justify-between mb-2">
                 <div>
-                  <span className="text-xs font-semibold text-gray-300">Recovery Strategy on Loss</span>
-                  <p className="text-[10px] text-gray-500">Switch trade type upon loss</p>
+                  <span className="text-xs font-semibold text-emerald-400">Entry Digit Filter Signal</span>
+                  <p className="text-[10px] text-gray-400">Execute trade strictly when entry digit hits</p>
                 </div>
-                <button
-                  type="button"
-                  disabled={isTrading}
-                  onClick={() => {
-                    const newState = !showRecoveryConfig;
-                    setShowRecoveryConfig(newState);
-                    setSettings({ ...settings, useRecovery: newState });
-                  }}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                    showRecoveryConfig ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
-                  }`}
-                >
-                  {showRecoveryConfig ? 'CLOSE' : 'OPEN'}
-                </button>
+                <span className="px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-400 text-[10px] font-bold">ACTIVE</span>
               </div>
+              <div className="pt-2 border-t border-gray-800">
+                <label className="block text-xs text-gray-400 mb-1">Target Entry Digit (0-9):</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="9"
+                  disabled={isTrading}
+                  value={settings.entryDigit}
+                  onChange={(e) => setSettings({ ...settings, entryDigit: parseInt(e.target.value, 10) || 0 })}
+                  className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm font-bold text-emerald-300"
+                />
+              </div>
+            </div>
 
-              {showRecoveryConfig && (
-                <div className="mt-3 pt-3 border-t border-gray-800 space-y-3">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Recovery Trade Type</label>
-                    <select
-                      disabled={isTrading}
-                      value={settings.recoveryTradeType}
-                      onChange={(e) => setSettings({ ...settings, recoveryTradeType: e.target.value as TradeCategory })}
-                      className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm"
-                    >
-                      <option value="MATCHES">Matches</option>
-                      <option value="DIFFERS">Differs</option>
-                      <option value="OVER">Over</option>
-                      <option value="UNDER">Under</option>
-                      <option value="EVEN">Even</option>
-                      <option value="ODD">Odd</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Recovery Target / Barrier</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="9"
-                      disabled={isTrading || ['EVEN', 'ODD'].includes(settings.recoveryTradeType)}
-                      value={settings.recoveryBarrier}
-                      onChange={(e) => setSettings({ ...settings, recoveryBarrier: parseInt(e.target.value, 10) || 0 })}
-                      className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-sm"
-                    />
-                  </div>
+            {/* Martingale Multiplier & Instant Recovery */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Martingale Multiplier</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  disabled={isTrading}
+                  value={settings.martingaleMultiplier}
+                  onChange={(e) => setSettings({ ...settings, martingaleMultiplier: parseFloat(e.target.value) || 1 })}
+                  className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none"
+                />
+              </div>
+              <div className="flex flex-col justify-end">
+                <div className="bg-emerald-950/40 border border-emerald-900/50 rounded-lg px-3 py-2 text-center">
+                  <span className="text-[10px] text-emerald-400 font-bold block">INSTANT RECOVERY</span>
+                  <span className="text-[10px] text-gray-300">Same trade type on loss</span>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Take Profit & Stop Loss */}
@@ -391,7 +384,7 @@ export default function AIModal() {
               </div>
               {stats.isRecovering && (
                 <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider text-center pt-1 animate-pulse">
-                  ⚠️ Recovery Strategy Active
+                  ⚠️ Recovery Active (Stake: ${stats.currentStake.toFixed(2)})
                 </div>
               )}
             </div>
