@@ -16,12 +16,12 @@ export default function AIModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Check authentication status safely on client mount & handle OAuth tokens from URL if returned
+  // Check authentication status and handle tokens returned from Deriv OAuth redirect
   useEffect(() => {
     const checkAuth = () => {
       if (typeof window === 'undefined') return;
 
-      // Capture token from URL hash if redirected back from Deriv OAuth
+      // Capture token and account ID returned from Deriv OAuth in URL hash
       const hash = window.location.hash;
       if (hash && hash.includes('acct1')) {
         const params = new URLSearchParams(hash.replace('#', '?'));
@@ -30,7 +30,7 @@ export default function AIModal() {
         if (token1 && acct1) {
           localStorage.setItem('config.token', token1);
           localStorage.setItem('active_loginid', acct1);
-          // Clean URL hash
+          // Clear hash from URL cleanly
           window.history.replaceState({}, document.title, window.location.pathname);
         }
       }
@@ -198,22 +198,22 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Authentication Prompt Modal (When Signed Out) */}
+      {/* Authentication Prompt Modal */}
       {showAuthPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
             <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg">
               AI
             </div>
-            <h3 className="font-bold text-lg text-emerald-400">Authentication Required</h3>
+            <h3 className="font-bold text-lg text-emerald-400">Deriv Authentication</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              You must be signed in to your Deriv account to configure and run the AI Trading Assistant. Sign in or create an account to continue.
+              Authenticate securely via Deriv to access the AI Trading Assistant on Naizora. If you don&apos;t have an account, Deriv will guide you through creation.
             </p>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 onClick={() => {
                   setShowAuthPrompt(false);
-                  // Correct Deriv OAuth authorization endpoint for Login & Signup
+                  // Correct Deriv OAuth redirect URL for login & signup
                   window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=1089';
                 }}
                 className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all"
