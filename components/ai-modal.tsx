@@ -16,9 +16,10 @@ export default function AIModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Check authentication status on mount and storage changes
+  // Check authentication status safely on client mount
   useEffect(() => {
     const checkAuth = () => {
+      if (typeof window === 'undefined') return;
       const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
       const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
       
