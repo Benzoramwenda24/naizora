@@ -14,7 +14,7 @@ export default function AIModal() {
   // Draggable Button Position State
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: number; y: number } | { x: 0; y: 0 }>({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Auto-dismiss auth notification prompt after 10 seconds
   useEffect(() => {
@@ -27,26 +27,25 @@ export default function AIModal() {
     return () => clearTimeout(timer);
   }, [showAuthPrompt]);
 
-  // Robust check for authentication status across your platform's session keys
+  // Precise authentication check looking strictly for real active credentials
   useEffect(() => {
     const checkAuth = () => {
       if (typeof window === 'undefined') return;
 
-      const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
-      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token');
+      const activeLogin = localStorage.getItem('active_loginid');
+      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
       
-      // Also check if any key in localStorage contains auth or token info
-      const hasAuthData = Object.keys(localStorage).some(
-        (key) => (key.includes('token') || key.includes('client') || key.includes('account') || key.includes('login')) && localStorage.getItem(key)
+      const userIsAuth = Boolean(
+        (activeLogin && activeLogin.trim() !== '' && activeLogin !== 'undefined' && activeLogin !== 'null') ||
+        (token && token.trim() !== '' && token !== 'undefined' && token !== 'null')
       );
 
-      const userIsAuth = Boolean(activeLogin || token || hasAuthData);
       setIsLoggedIn(userIsAuth);
     };
 
     checkAuth();
     window.addEventListener('storage', checkAuth);
-    const interval = setInterval(checkAuth, 1000); // Check periodically to sync with platform login state
+    const interval = setInterval(checkAuth, 1000);
 
     return () => {
       window.removeEventListener('storage', checkAuth);
@@ -99,11 +98,17 @@ export default function AIModal() {
   const handleButtonClick = () => {
     if (isDragging) return;
     
-    // Re-verify login state instantly on click
-    const activeLogin = typeof window !== 'undefined' && (localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts') || localStorage.getItem('config.token'));
-    const userAuthenticated = isLoggedIn || Boolean(activeLogin);
+    // Strict verification on click
+    const activeLogin = typeof window !== 'undefined' ? localStorage.getItem('active_loginid') : null;
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('config.token') || localStorage.getItem('user_token')) : null;
+    
+    const userAuthenticated = Boolean(
+      (activeLogin && activeLogin.trim() !== '' && activeLogin !== 'undefined' && activeLogin !== 'null') ||
+      (token && token.trim() !== '' && token !== 'undefined' && token !== 'null')
+    );
 
     if (!userAuthenticated) {
+      setIsOpen(false);
       setShowAuthPrompt(true);
     } else {
       setShowAuthPrompt(false);
