@@ -5,9 +5,21 @@ import React, { useState, useEffect } from 'react';
 
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Auto-dismiss auth notification prompt after 10 seconds
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showAuthPrompt) {
+      timer = setTimeout(() => {
+        setShowAuthPrompt(false);
+      }, 10000);
+    }
+    return () => clearTimeout(timer);
+  }, [showAuthPrompt]);
 
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
@@ -53,7 +65,25 @@ export default function AIModal() {
 
   const handleButtonClick = () => {
     if (isDragging) return;
-    setIsOpen(!isOpen);
+
+    // Check if user is logged into the site
+    const activeLogin = typeof window !== 'undefined' ? localStorage.getItem('active_loginid') : null;
+    const clientAccounts = typeof window !== 'undefined' ? localStorage.getItem('client.accounts') : null;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('config.token') || localStorage.getItem('user_token') : null;
+
+    const userAuthenticated = Boolean(
+      (activeLogin && activeLogin.trim() !== '') ||
+      (clientAccounts && clientAccounts.length > 5) ||
+      (token && token.trim() !== '')
+    );
+
+    if (!userAuthenticated) {
+      setIsOpen(false);
+      setShowAuthPrompt(true); // Show notification prompt if not logged in
+    } else {
+      setShowAuthPrompt(false);
+      setIsOpen(!isOpen); // Open embedded DBot modal if logged in
+    }
   };
 
   return (
@@ -105,14 +135,36 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Embedded DBot Modal (Keeps users on your site) */}
+      {/* Auto-Dismissing Authentication Notification Prompt */}
+      {showAuthPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg shadow-md">
+              AI
+            </div>
+            <h3 className="font-bold text-lg text-emerald-400">Authentication Required</h3>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Please click the <strong className="text-emerald-400">Log in</strong> button on the top right side of our website to continue using the AI trading assistant.
+            </p>
+            <p className="text-[10px] text-gray-500 italic">This notification will close automatically in 10 seconds.</p>
+            <button
+              onClick={() => setShowAuthPrompt(false)}
+              className="w-full py-2.5 bg-[#111622] hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs tracking-wide transition-all border border-gray-700"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Embedded DBot Workspace Modal (For Logged-in Users) */}
       {isOpen && (
         <div className="fixed bottom-28 right-6 z-50 w-[580px] max-w-[96vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md animate-fadeIn">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-3 bg-[#111622] border-b border-gray-800">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <h3 className="font-bold text-xs tracking-wider uppercase text-emerald-400">Deriv DBot Hub (On-Site)</h3>
+              <h3 className="font-bold text-xs tracking-wider uppercase text-emerald-400">Deriv DBot Studio (On-Site)</h3>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -125,7 +177,7 @@ export default function AIModal() {
             </div>
           </div>
 
-          {/* Embedded Iframe Container */}
+          {/* Embedded DBot Iframe Container */}
           <div className="w-full h-[540px] bg-black relative">
             <iframe
               src="https://bot.deriv.com"
