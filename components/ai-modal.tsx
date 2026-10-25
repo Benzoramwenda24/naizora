@@ -54,17 +54,46 @@ export default function AIModal() {
     };
   }, [isDragging, dragOffset]);
 
+  const getToken = (): { token: string; loginid: string } => {
+    if (typeof window === 'undefined') return { token: '', loginid: '' };
+    try {
+      const activeLoginid = localStorage.getItem('active_loginid');
+      const clientAccountsStr = localStorage.getItem('client.accounts');
+      if (clientAccountsStr && activeLoginid) {
+        const accounts = JSON.parse(clientAccountsStr);
+        if (accounts[activeLoginid] && accounts[activeLoginid].token) {
+          return { token: accounts[activeLoginid].token, loginid: activeLoginid };
+        }
+      }
+      if (clientAccountsStr) {
+        const accounts = JSON.parse(clientAccountsStr);
+        const firstKey = Object.keys(accounts)[0];
+        if (firstKey && accounts[firstKey].token) {
+          return { token: accounts[firstKey].token, loginid: firstKey };
+        }
+      }
+    } catch (e) {}
+
+    const directToken = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token') || '';
+    const directLoginid = localStorage.getItem('active_loginid') || '';
+    return { token: directToken, loginid: directLoginid };
+  };
+
   const handleButtonClick = () => {
     if (isDragging) return;
     setIsOpen(!isOpen);
   };
 
-  const handleLaunchAuthRedirect = () => {
-    // Deriv OAuth authorization URL tied to your app ID and 3% markup
-    const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${DERIV_APP_ID}&brand=deriv`;
+  const handleLaunchDBot = () => {
+    const { token, loginid } = getToken();
     
-    // Redirects user securely to Deriv while linking their session to your Naizora app
-    window.open(oauthUrl, '_blank');
+    // Directs straight to the official DBot page, passing your App ID and user session token
+    let dbotUrl = `https://bot.deriv.com/?app_id=${DERIV_APP_ID}`;
+    if (token) {
+      dbotUrl += `&token=${token}&acct1=${loginid}`;
+    }
+
+    window.open(dbotUrl, '_blank');
     setIsOpen(false);
   };
 
@@ -137,17 +166,17 @@ export default function AIModal() {
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-bold text-base text-white">Connect & Trade via Naizora</h4>
+              <h4 className="font-bold text-base text-white">Launch Fresh DBot Workspace</h4>
               <p className="text-xs text-gray-300 leading-relaxed">
-                Launch your automated trading workspace in a secure dedicated window connected directly through your Naizora session.
+                Open the official Deriv DBot builder in a clean new tab. Your session is connected and secured automatically.
               </p>
             </div>
 
             <button
-              onClick={handleLaunchAuthRedirect}
+              onClick={handleLaunchDBot}
               className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
             >
-              <span>Launch Trading Workspace ↗</span>
+              <span>Launch DBot Studio ↗</span>
             </button>
 
             <p className="text-[10px] text-gray-500 italic">
