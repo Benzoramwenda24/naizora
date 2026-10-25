@@ -7,17 +7,50 @@ import { AITradingEngine, AISettings, TradeStats, TradeCategory } from '@/lib/ai
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isTrading, setIsTrading] = useState(false);
   const [log, setLog] = useState<string>('Configure your AI settings and click trade.');
 
-  // Draggable Button Position State
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  // Check authentication status on mount and storage changes
+  useEffect(() => {
+    const checkAuth = () => {
+      // Check standard Deriv / White-label session storage keys
+      const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
+      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
+      
+      // Also check if any key in localStorage contains active user data or tokens
+      const hasAuthData = Object.keys(localStorage).some(
+        (key) => (key.includes('token') || key.includes('client') || key.includes('account')) && localStorage.getItem(key)
+      );
 
-  // Collapsible Toggles for Optional Sections
-  const [showEntryConfig, setShowEntryConfig] = useState(true); // Default active as requested
+      const userIsAuth = Boolean(activeLogin || token || hasAuthData);
+      setIsLoggedIn(userIsAuth);
+    };
+
+    checkAuth();
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
+  }, []);
+  // Check authentication status on mount and storage changes
+  useEffect(() => {
+    const checkAuth = () => {
+      // Check standard Deriv / White-label session storage keys
+      const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
+      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
+      
+      // Also check if any key in localStorage contains active user data or tokens
+      const hasAuthData = Object.keys(localStorage).some(
+        (key) => (key.includes('token') || key.includes('client') || key.includes('account')) && localStorage.getItem(key)
+      );
+
+      const userIsAuth = Boolean(activeLogin || token || hasAuthData);
+      setIsLoggedIn(userIsAuth);
+    };
+
+    checkAuth();
+    window.addEventListener('storage', checkAuth);
+    return () => window.removeEventListener('storage', checkAuth);
+  }, []);
 
   // User Settings State
   const [settings, setSettings] = useState<AISettings>({
