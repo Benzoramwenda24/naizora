@@ -19,11 +19,9 @@ export default function AIModal() {
   // Check authentication status on mount and storage changes
   useEffect(() => {
     const checkAuth = () => {
-      // Check standard Deriv / White-label session storage keys
       const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
       const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
       
-      // Also check if any key in localStorage contains active user data or tokens
       const hasAuthData = Object.keys(localStorage).some(
         (key) => (key.includes('token') || key.includes('client') || key.includes('account')) && localStorage.getItem(key)
       );
@@ -137,6 +135,14 @@ export default function AIModal() {
 
   return (
     <>
+      <style>{`
+        @keyframes slowGreenPulse {
+          0% { box-shadow: 0 0 8px rgba(16, 185, 129, 0.25), 0 0 0 0 rgba(16, 185, 129, 0.3); }
+          50% { box-shadow: 0 0 22px rgba(16, 185, 129, 0.75), 0 0 0 10px rgba(16, 185, 129, 0); }
+          100% { box-shadow: 0 0 8px rgba(16, 185, 129, 0.25), 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+      `}</style>
+
       {/* Draggable, Perfect Circle, Deep Blue Floating Button with Slow Green Glow */}
       <div
         style={
@@ -174,20 +180,6 @@ export default function AIModal() {
             use ai
           </span>
         </button>
-
-        <style jsx>{`
-          @keyframes slowGreenPulse {
-            0% {
-              box-shadow: 0 0 8px rgba(16, 185, 129, 0.25), 0 0 0 0 rgba(16, 185, 129, 0.3);
-            }
-            50% {
-              box-shadow: 0 0 22px rgba(16, 185, 129, 0.75), 0 0 0 10px rgba(16, 185, 129, 0);
-            }
-            100% {
-              box-shadow: 0 0 8px rgba(16, 185, 129, 0.25), 0 0 0 0 rgba(16, 185, 129, 0);
-            }
-          }
-        `}</style>
       </div>
 
       {/* Authentication Prompt Modal (When Signed Out) */}
