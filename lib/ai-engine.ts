@@ -33,7 +33,6 @@ export class AITradingEngine {
   private isContractActive: boolean = false;
   private currentSymbol: string;
   private messageHandler: ((event: MessageEvent) => void) | null = null;
-  private pingInterval: any = null;
 
   constructor(settings: AISettings, callback: (stats: TradeStats, log: string) => void) {
     this.settings = settings;
@@ -55,36 +54,16 @@ export class AITradingEngine {
     this.isContractActive = false;
     this.currentSymbol = this.settings.symbol;
     this.stats.status = 'RUNNING';
-    this.callback(this.stats, 'Connecting to trading stream...');
+    this.callback(this.stats, 'Initializing system trade execution...');
 
+    // Use platform's active system WebSocket stream if available, otherwise open a direct connection
     const globalWin = window as unknown as { derivWS?: WebSocket };
-    
     if (globalWin.derivWS && globalWin.derivWS.readyState === WebSocket.OPEN) {
       this.ws = globalWin.derivWS;
-      this.callback(this.stats, 'Connected to system stream. Executing trade...');
-      this.setupListenerAndTrade();
+      this.setupAndExecute();
     } else {
-      // Create dedicated stable connection with heartbeat
       this.ws = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
-
-      this.pingInterval = setInterval(() => {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-          this.ws.send(JSON.stringify({ ping: 1 }));
-        }
-      }, 30000);
-
-      this.ws.onopen = () => {
-        this.callback(this.stats, 'Connected. Authorizing session...');
-        this.authorize();
-      };
-
-      this.ws.onclose = () => {
-        if (this.isRunning) {
-          this.callback(this.stats, 'Stream connection closed.');
-        }
-      };
-
-      this.setupListenerAndTrade();
+      this.setupAndExecute();
     }
   }
 
@@ -118,15 +97,7 @@ export class AITradingEngine {
     return '';
   }
 
-  private authorize() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    const token = this.getToken();
-    if (token) {
-      this.ws.send(JSON.stringify({ authorize: token }));
-    }
-  }
-
-  private setupListenerAndTrade() {
+  private setupAndExecute() {
     if (!this.ws) return;
 
     this.messageHandler = (event: MessageEvent) => {
@@ -138,21 +109,28 @@ export class AITradingEngine {
           return;
         }
         this.handleMessage(data);
-      } catch (e) {
-        console.error('Parsing error:', e);
-      }
+      } catch (e) {}
     };
 
     this.ws.addEventListener('message', this.messageHandler);
 
     if (this.ws.readyState === WebSocket.OPEN) {
-      this.authorize();
-      setTimeout(() => {
-        if (this.isRunning && !this.isContractActive) {
-          this.requestProposal();
-        }
-      }, 800);
+      this.authorizeAndTrade();
+    } else {
+      this.ws.onopen = () => {
+        this.authorizeAndTrade();
+      };
     }
+  }
+
+  private authorizeAndTrade() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    const token = this.getToken();
+    if (token) {
+      this.ws.send(JSON.stringify({ authorize: token }));
+    }
+    this.callback(this.stats, `Placing trade on [${this.currentSymbol}] ($${this.stats.currentStake.toFixed(2)})...`);
+    this.requestProposal();
   }
 
   private handleMessage(data: any) {
@@ -160,7 +138,7 @@ export class AITradingEngine {
 
     if (msgType === 'authorize') {
       if (data.authorize) {
-        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Placing trade...`);
+        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Executing...`);
         if (!this.isContractActive && this.isRunning) {
           this.requestProposal();
         }
@@ -275,15 +253,10 @@ export class AITradingEngine {
     if (this.stats.status === 'RUNNING') {
       this.stats.status = 'STOPPED';
     }
-    if (this.pingInterval) {
-      clearInterval(this.pingInterval);
-      this.pingInterval = null;
-    }
     if (this.ws && this.messageHandler) {
       this.ws.removeEventListener('message', this.messageHandler);
       this.messageHandler = null;
     }
-    // CRITICAL: Never close the shared system window.derivWS socket! Only close dedicated fallback sockets.
     const globalWin = window as unknown as { derivWS?: WebSocket };
     if (this.ws && this.ws !== globalWin.derivWS) {
       if (this.ws.readyState === WebSocket.OPEN) {
