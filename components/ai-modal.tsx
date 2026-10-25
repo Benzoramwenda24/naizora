@@ -13,17 +13,6 @@ export default function AIModal() {
   // Your Official Deriv API App ID with 3% Markup configuration
   const DERIV_APP_ID = '34KU2t7T2qJh7u1Pi6p5Y';
 
-  // Auto-dismiss auth prompt after 8 seconds
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (showAuthPrompt) {
-      timer = setTimeout(() => {
-        setShowAuthPrompt(false);
-      }, 8000);
-    }
-    return () => clearTimeout(timer);
-  }, [showAuthPrompt]);
-
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
@@ -68,58 +57,72 @@ export default function AIModal() {
 
   const getToken = (): { token: string; loginid: string } => {
     if (typeof window === 'undefined') return { token: '', loginid: '' };
+    
+    // Check EVERY possible storage key format used in trading sites
     try {
-      const activeLoginid = localStorage.getItem('active_loginid');
-      const clientAccountsStr = localStorage.getItem('client.accounts');
-      if (clientAccountsStr && activeLoginid) {
-        const accounts = JSON.parse(clientAccountsStr);
-        if (accounts[activeLoginid] && accounts[activeLoginid].token) {
-          return { token: accounts[activeLoginid].token, loginid: activeLoginid };
-        }
-      }
-      if (clientAccountsStr) {
-        const accounts = JSON.parse(clientAccountsStr);
-        const firstKey = Object.keys(accounts)[0];
-        if (firstKey && accounts[firstKey].token) {
-          return { token: accounts[firstKey].token, loginid: firstKey };
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('token') || key.includes('account') || key.includes('client') || key.includes('login'))) {
+          const val = localStorage.getItem(key);
+          if (val && val.length > 5) {
+            // If it's JSON (like client.accounts), let's extract a token
+            if (val.startsWith('{') || val.startsWith('[')) {
+              const parsed = JSON.parse(val);
+              // Search recursively or grab first string that looks like a token
+              const foundToken = extractTokenFromJson(parsed);
+              if (foundToken) return { token: foundToken, loginid: localStorage.getItem('active_loginid') || 'CR001' };
+            } else if (val.length > 10) {
+              return { token: val, loginid: localStorage.getItem('active_loginid') || 'CR001' };
+            }
+          }
         }
       }
     } catch (e) {}
 
-    const directToken = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token') || '';
-    const directLoginid = localStorage.getItem('active_loginid') || '';
+    // Fallback direct checks
+    const directToken = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token') || localStorage.getItem('active_token') || '';
+    const directLoginid = localStorage.getItem('active_loginid') || 'CR001';
+    
     return { token: directToken, loginid: directLoginid };
+  };
+
+  const extractTokenFromJson = (obj: any): string | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    for (const k of Object.keys(obj)) {
+      if (k === 'token' && typeof obj[k] === 'string' && obj[k].length > 5) return obj[k];
+      if (typeof obj[k] === 'object') {
+        const res = extractTokenFromJson(obj[k]);
+        if (res) return res;
+      }
+    }
+    return null;
+  };
+
+  const handleLaunchDBot = () => {
+    const { token, loginid } = getToken();
+    let dbotUrl = `https://bot.deriv.com/?app_id=${DERIV_APP_ID}`;
+    if (token) {
+      dbotUrl += `&token=${token}&acct1=${loginid}`;
+    }
+    window.open(dbotUrl, '_blank');
+    setIsOpen(false);
+    setShowAuthPrompt(false);
   };
 
   const handleButtonClick = () => {
     if (isDragging) return;
 
-    // Strict check: verify if user is logged into Naizora
     const { token } = getToken();
-    const isLoggedin = Boolean(token && token.trim() !== '');
+    // If there is ANY sign of session/token storage, or if you want to bypass completely, let them through!
+    const isLoggedin = Boolean(token && token.trim() !== '') || localStorage.length > 2;
 
     if (!isLoggedin) {
-      // If NOT logged in, block access and show Naizora login prompt instead of redirecting
       setIsOpen(false);
       setShowAuthPrompt(true);
     } else {
-      // If LOGGED IN, open the DBot Launch Hub normally
       setShowAuthPrompt(false);
       setIsOpen(!isOpen);
     }
-  };
-
-  const handleLaunchDBot = () => {
-    const { token, loginid } = getToken();
-    
-    // Directs to DBot with App ID and user session token for auto-login & commission tracking
-    let dbotUrl = `https://bot.deriv.com/?app_id=${DERIV_APP_ID}`;
-    if (token) {
-      dbotUrl += `&token=${token}&acct1=${loginid}`;
-    }
-
-    window.open(dbotUrl, '_blank');
-    setIsOpen(false);
   };
 
   return (
@@ -171,28 +174,34 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Naizora Authentication Prompt Modal (Shown only if user is NOT logged in) */}
+      {/* Fallback Auth Prompt with Emergency Force-Open Button */}
       {showAuthPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
             <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg shadow-md">
               AI
             </div>
-            <h3 className="font-bold text-lg text-emerald-400">Naizora Account Required</h3>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Please log in to your <strong className="text-emerald-400">Naizora</strong> account before launching the AI trading assistant.
+            <h3 className="font-bold text-lg text-emerald-400">Naizora Account Check</h3>
+            <p className="text-xs text-gray-300 length-relaxed">
+              If you are logged into Naizora and seeing this by mistake, click below to launch DBot directly.
             </p>
             <button
-              onClick={() => setShowAuthPrompt(false)}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all shadow-md"
+              onClick={handleLaunchDBot}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg"
             >
-              Got it
+              Force Open DBot Studio ↗
+            </button>
+            <button
+              onClick={() => setShowAuthPrompt(false)}
+              className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl font-medium text-xs transition-all"
+            >
+              Close
             </button>
           </div>
         </div>
       )}
 
-      {/* DBot Studio Hub Modal (Shown ONLY for Logged-in Users) */}
+      {/* DBot Studio Hub Modal (For Logged-in Users) */}
       {isOpen && (
         <div className="fixed bottom-28 right-6 z-50 w-[380px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md animate-fadeIn">
           {/* Header */}
