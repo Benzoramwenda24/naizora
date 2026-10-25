@@ -60,7 +60,7 @@ export class AITradingEngine {
     }
 
     if (this.ws) {
-      this.ws.onmessage = (event: MessageEvent) => this.handleMessage(event);
+      this.ws.onmessage = (event: any) => this.handleMessage(event);
     }
   }
 
@@ -83,7 +83,7 @@ export class AITradingEngine {
     );
   }
 
-  private handleMessage(event: MessageEvent) {
+  private handleMessage(event: any) {
     if (!this.isRunning) return;
     const data = JSON.parse(event.data);
 
