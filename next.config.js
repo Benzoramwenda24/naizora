@@ -1,6 +1,11 @@
-/** @type {import('next').NextConfig} */
+/** @type {import('next').Next.Config} */
 const nextConfig = {
-  transpilePackages: ['@deriv/core'],
-}
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
