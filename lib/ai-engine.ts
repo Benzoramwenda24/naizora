@@ -12,7 +12,7 @@ export interface AISettings {
   martingaleMultiplier: number;
   takeProfit: number;
   stopLoss: number;
-  useRecovery: boolean; // Martingale stake scaling on loss without switching trade types
+  useRecovery: boolean;
 }
 
 export interface TradeStats {
@@ -28,7 +28,7 @@ export interface TradeStats {
 export class AITradingEngine {
   private settings: AISettings;
   private onUpdate: (stats: TradeStats, log: string) => void;
-  private ws: WebSocket | null = null;
+  private ws: any | null = null;
   private stats: TradeStats;
   private isRunning: boolean = false;
   private currentProposalId: string | null = null;
@@ -47,26 +47,28 @@ export class AITradingEngine {
     };
   }
 
-  public startTrading(ws: WebSocket) {
+  public startTrading(ws: any) {
     this.ws = ws;
     this.isRunning = true;
     this.stats.status = 'RUNNING';
     this.onUpdate(this.stats, 'AI Engine active. Waiting for entry digit signal...');
 
-    if (this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === 1) {
       this.subscribeTicks();
-    } else {
+    } else if (this.ws) {
       this.ws.onopen = () => this.subscribeTicks();
     }
 
-    this.ws.onmessage = (event) => this.handleMessage(event);
+    if (this.ws) {
+      this.ws.onmessage = (event: MessageEvent) => this.handleMessage(event);
+    }
   }
 
   public stopTrading() {
     this.isRunning = false;
     this.stats.status = 'STOPPED';
     this.onUpdate(this.stats, 'Trading stopped by user.');
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === 1) {
       this.ws.send(JSON.stringify({ forget_all: 'ticks' }));
     }
   }
@@ -92,16 +94,14 @@ export class AITradingEngine {
 
       this.onUpdate(
         this.stats,
-        `Tick: ${tick.quote} | Last Digit: ${lastDigit} | Waiting for target: ${this.settings.entryDigit}`
+        `Tick: ${tick.quote} | Last Digit: ${lastDigit} | Target: ${this.settings.entryDigit}`
       );
 
-      // Check Entry Digit Condition
       if (this.settings.useEntryCondition) {
         if (lastDigit === this.settings.entryDigit) {
           this.executeTrade();
         }
       } else {
-        // If entry condition toggle is off, trade on every tick
         this.executeTrade();
       }
     } else if (data.msg_type === 'proposal') {
@@ -113,7 +113,7 @@ export class AITradingEngine {
       }
     } else if (data.msg_type === 'buy') {
       if (data.buy) {
-        this.onUpdate(this.stats, `Trade Executed! Contract ID: ${data.buy.contract_id}`);
+        this.onUpdate(this.stats, `Trade Executed! ID: ${data.buy.contract_id}`);
       } else if (data.error) {
         this.onUpdate(this.stats, `Buy Error: ${data.error.message}`);
       }
@@ -126,30 +126,28 @@ export class AITradingEngine {
 
         if (profit >= 0) {
           this.stats.wins += 1;
-          this.stats.currentStake = this.settings.stake; // Reset stake on win
+          this.stats.currentStake = this.settings.stake;
           this.stats.isRecovering = false;
-          this.onUpdate(this.stats, `Win! +$${profit.toFixed(2)}. Resetting stake.`);
+          this.onUpdate(this.stats, `Win! +$${profit.toFixed(2)}. Reset stake.`);
         } else {
           this.stats.losses += 1;
           this.stats.isRecovering = true;
-          // Apply Martingale recovery instantly without switching trade types
           if (this.settings.useRecovery) {
             this.stats.currentStake *= this.settings.martingaleMultiplier;
             this.onUpdate(
               this.stats,
-              `Loss: -$${Math.abs(profit).toFixed(2)}. Instant Recovery: New Stake $${this.stats.currentStake.toFixed(2)}`
+              `Loss: -$${Math.abs(profit).toFixed(2)}. Recovery Stake: $${this.stats.currentStake.toFixed(2)}`
             );
           }
         }
 
-        // Check TP & SL Limits
         if (this.stats.totalProfit >= this.settings.takeProfit) {
           this.stats.status = 'TP_HIT';
-          this.onUpdate(this.stats, `Take Profit Reached! Profit: $${this.stats.totalProfit.toFixed(2)}`);
+          this.onUpdate(this.stats, `Take Profit Reached! $${this.stats.totalProfit.toFixed(2)}`);
           this.stopTrading();
         } else if (this.stats.totalProfit <= -this.settings.stopLoss) {
           this.stats.status = 'SL_HIT';
-          this.onUpdate(this.stats, `Stop Loss Reached! Loss: $${this.stats.totalProfit.toFixed(2)}`);
+          this.onUpdate(this.stats, `Stop Loss Reached! $${this.stats.totalProfit.toFixed(2)}`);
           this.stopTrading();
         }
       }
