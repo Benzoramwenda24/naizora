@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AITradingEngine, AISettings, TradeStats, TradeCategory } from '@/lib/ai-engine';
+import { AITradingEngine, AISettings, TradeStats, TradeCategory } from '../lib/ai-engine';
 
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
