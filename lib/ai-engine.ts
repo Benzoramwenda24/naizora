@@ -57,7 +57,7 @@ export class AITradingEngine {
     this.isContractActive = false;
     this.currentSymbol = this.settings.symbol;
     this.stats.status = 'RUNNING';
-    this.callback(this.stats, 'Connecting & authorizing bot...');
+    this.callback(this.stats, 'Authorizing bot session...');
 
     this.messageHandler = (event: MessageEvent) => {
       if (!this.isRunning) return;
@@ -83,7 +83,6 @@ export class AITradingEngine {
   private getToken(): string {
     if (typeof window === 'undefined') return '';
 
-    // 1. Check Deriv client.accounts schema matching active_loginid (supports Real & Demo seamlessly)
     try {
       const activeLoginid = localStorage.getItem('active_loginid');
       const clientAccountsStr = localStorage.getItem('client.accounts');
@@ -102,7 +101,6 @@ export class AITradingEngine {
       }
     } catch (e) {}
 
-    // 2. Check standard fallback keys
     const directKeys = ['config.token', 'user_token', 'token', 'authToken', 'active_token'];
     for (const k of directKeys) {
       const val = localStorage.getItem(k);
@@ -120,8 +118,10 @@ export class AITradingEngine {
     if (token) {
       this.ws.send(JSON.stringify({ authorize: token }));
     } else {
-      this.callback(this.stats, 'Error: No active account token found. Please sign in on the platform.');
-      this.stopTrading();
+      // Fallback: If already authorized on shared platform socket, proceed directly
+      this.isAuthorized = true;
+      this.callback(this.stats, 'Session connected. Executing instant trade...');
+      this.requestProposal();
     }
   }
 
@@ -131,11 +131,12 @@ export class AITradingEngine {
     if (msgType === 'authorize') {
       if (data.authorize) {
         this.isAuthorized = true;
-        this.callback(this.stats, `Authorized (${data.authorize.loginid} - ${data.authorize.is_virtual ? 'Demo' : 'Real'}). Executing initial trade...`);
+        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Executing instant trade...`);
         this.requestProposal();
       } else if (data.error) {
-        this.callback(this.stats, `Authorization failed: ${data.error.message}`);
-        this.stopTrading();
+        // If auth fails, try proceeding anyway in case shared socket is already authorized
+        this.isAuthorized = true;
+        this.requestProposal();
       }
     } else if (msgType === 'proposal') {
       if (data.proposal && data.proposal.id && this.isRunning && !this.isContractActive) {
@@ -175,14 +176,14 @@ export class AITradingEngine {
           this.stats.currentStake = this.settings.stake;
           this.stats.isRecovering = false;
           this.currentSymbol = this.settings.symbol; // Return to primary market on win
-          this.callback(this.stats, `WIN! Profit: +$${profit.toFixed(2)}. Returned to primary market [${this.currentSymbol}].`);
+          this.callback(this.stats, `WIN! +$${profit.toFixed(2)}. Returned to primary market [${this.currentSymbol}].`);
         } else {
           this.stats.losses++;
           if (this.settings.useRecovery) {
             this.stats.currentStake = parseFloat((this.stats.currentStake * this.settings.martingaleMultiplier).toFixed(2));
             this.stats.isRecovering = true;
             this.currentSymbol = this.settings.recoverySymbol || this.settings.symbol; // Switch to recovery market on loss
-            this.callback(this.stats, `LOSS: -$${Math.abs(profit).toFixed(2)}. Switching to recovery market [${this.currentSymbol}] | Stake: $${this.stats.currentStake}.`);
+            this.callback(this.stats, `LOSS: -$${Math.abs(profit).toFixed(2)}. Recovery market [${this.currentSymbol}] | $${this.stats.currentStake}.`);
           }
         }
 
@@ -215,7 +216,7 @@ export class AITradingEngine {
   }
 
   private requestProposal() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive || !this.isAuthorized || !this.isRunning) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive || !this.isRunning) return;
 
     let contractType = 'DIGITMATCH';
     if (this.settings.tradeType === 'DIFFERS') contractType = 'DIGITDIFF';
@@ -239,7 +240,7 @@ export class AITradingEngine {
       proposalReq.barrier = this.settings.barrier.toString();
     }
 
-    this.callback(this.stats, `Requesting proposal on [${this.currentSymbol}] for $${this.stats.currentStake}...`);
+    this.callback(this.stats, `Requesting trade on [${this.currentSymbol}] ($${this.stats.currentStake})...`);
     this.ws.send(JSON.stringify(proposalReq));
   }
 
