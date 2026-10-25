@@ -213,8 +213,8 @@ export default function AIModal() {
               <button
                 onClick={() => {
                   setShowAuthPrompt(false);
-                  // Correct Deriv OAuth authorization endpoint URL
-                  window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=1089';
+                  const redirectUri = encodeURIComponent(window.location.origin);
+                  window.location.href = `https://oauth.deriv.com/oauth2/authorize?app_id=1089&redirect_uri=${redirectUri}`;
                 }}
                 className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all"
               >
