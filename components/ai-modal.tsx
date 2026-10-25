@@ -34,10 +34,12 @@ export default function AIModal() {
 
       const activeLogin = localStorage.getItem('active_loginid');
       const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
+      const clientAccounts = localStorage.getItem('client.accounts');
       
       const userIsAuth = Boolean(
-        (activeLogin && activeLogin.trim() !== '' && activeLogin !== 'undefined' && activeLogin !== 'null') ||
-        (token && token.trim() !== '' && token !== 'undefined' && token !== 'null')
+        (activeLogin && activeLogin.trim() !== '') ||
+        (token && token.trim() !== '') ||
+        (clientAccounts && clientAccounts.length > 5)
       );
 
       setIsLoggedIn(userIsAuth);
@@ -99,11 +101,11 @@ export default function AIModal() {
     if (isDragging) return;
     
     const activeLogin = typeof window !== 'undefined' ? localStorage.getItem('active_loginid') : null;
-    const token = typeof window !== 'undefined' ? (localStorage.getItem('config.token') || localStorage.getItem('user_token')) : null;
+    const clientAccounts = typeof window !== 'undefined' ? localStorage.getItem('client.accounts') : null;
     
     const userAuthenticated = Boolean(
-      (activeLogin && activeLogin.trim() !== '' && activeLogin !== 'undefined' && activeLogin !== 'null') ||
-      (token && token.trim() !== '' && token !== 'undefined' && token !== 'null')
+      (activeLogin && activeLogin.trim() !== '') ||
+      (clientAccounts && clientAccounts.length > 5)
     );
 
     if (!userAuthenticated) {
@@ -126,6 +128,15 @@ export default function AIModal() {
     stopLoss: 20,
     useRecovery: true,
   });
+
+  // Sync market selection with website chart/display when primary market changes
+  const handleMarketChange = (newSymbol: string) => {
+    setSettings({ ...settings, symbol: newSymbol });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('active_symbol', newSymbol);
+      window.dispatchEvent(new CustomEvent('naizora_market_change', { detail: newSymbol }));
+    }
+  };
 
   const [stats, setStats] = useState<TradeStats>({
     totalTrades: 0,
@@ -252,7 +263,7 @@ export default function AIModal() {
                 <select
                   disabled={isTrading}
                   value={settings.symbol}
-                  onChange={(e) => setSettings({ ...settings, symbol: e.target.value })}
+                  onChange={(e) => handleMarketChange(e.target.value)}
                   className="w-full bg-[#111622] border border-gray-800 rounded-lg px-3 py-2 text-white focus:border-emerald-500 outline-none text-xs"
                 >
                   <option value="R_100">Volatility 100 Index</option>
