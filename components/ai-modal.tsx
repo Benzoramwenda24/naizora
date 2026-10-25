@@ -7,7 +7,7 @@ export default function AIModal() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: number; y: number });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Your Official Deriv API App ID with 3% Markup configuration for commissions
   const DERIV_APP_ID = '34KU2t7T2qJh7u1Pi6p5Y';
