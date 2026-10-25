@@ -14,7 +14,7 @@ export default function AIModal() {
   // Draggable Button Position State
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: number; y: number } | { x: 0; y: 0 }>({ x: 0, y: 0 });
 
   // Auto-dismiss auth notification prompt after 10 seconds
   useEffect(() => {
@@ -22,21 +22,22 @@ export default function AIModal() {
     if (showAuthPrompt) {
       timer = setTimeout(() => {
         setShowAuthPrompt(false);
-      }, 10000); // 10 seconds
+      }, 10000);
     }
     return () => clearTimeout(timer);
   }, [showAuthPrompt]);
 
-  // Check authentication status safely on client mount
+  // Robust check for authentication status across your platform's session keys
   useEffect(() => {
     const checkAuth = () => {
       if (typeof window === 'undefined') return;
 
       const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
-      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
+      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token');
       
+      // Also check if any key in localStorage contains auth or token info
       const hasAuthData = Object.keys(localStorage).some(
-        (key) => (key.includes('token') || key.includes('client') || key.includes('account')) && localStorage.getItem(key)
+        (key) => (key.includes('token') || key.includes('client') || key.includes('account') || key.includes('login')) && localStorage.getItem(key)
       );
 
       const userIsAuth = Boolean(activeLogin || token || hasAuthData);
@@ -45,7 +46,12 @@ export default function AIModal() {
 
     checkAuth();
     window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
+    const interval = setInterval(checkAuth, 1000); // Check periodically to sync with platform login state
+
+    return () => {
+      window.removeEventListener('storage', checkAuth);
+      clearInterval(interval);
+    };
   }, []);
 
   // Handle Dragging (Mouse & Touch support)
@@ -92,9 +98,15 @@ export default function AIModal() {
 
   const handleButtonClick = () => {
     if (isDragging) return;
-    if (!isLoggedIn) {
+    
+    // Re-verify login state instantly on click
+    const activeLogin = typeof window !== 'undefined' && (localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts') || localStorage.getItem('config.token'));
+    const userAuthenticated = isLoggedIn || Boolean(activeLogin);
+
+    if (!userAuthenticated) {
       setShowAuthPrompt(true);
     } else {
+      setShowAuthPrompt(false);
       setIsOpen(!isOpen);
     }
   };
@@ -195,7 +207,7 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Auto-Dismissing Notification Prompt (Exits after 10s) */}
+      {/* Auto-Dismissing Notification Prompt (Only when logged out) */}
       {showAuthPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
@@ -217,8 +229,8 @@ export default function AIModal() {
         </div>
       )}
 
-      {/* Main Configuration Modal */}
-      {isOpen && isLoggedIn && (
+      {/* Main Configuration Modal (Opens directly when logged in) */}
+      {isOpen && (
         <div className="fixed bottom-28 right-6 z-50 w-[400px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 bg-[#111622] border-b border-gray-800">
