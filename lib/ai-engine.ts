@@ -82,6 +82,27 @@ export class AITradingEngine {
 
   private getToken(): string {
     if (typeof window === 'undefined') return '';
+
+    // 1. Check Deriv client.accounts schema matching active_loginid (supports Real & Demo seamlessly)
+    try {
+      const activeLoginid = localStorage.getItem('active_loginid');
+      const clientAccountsStr = localStorage.getItem('client.accounts');
+      if (clientAccountsStr && activeLoginid) {
+        const accounts = JSON.parse(clientAccountsStr);
+        if (accounts[activeLoginid] && accounts[activeLoginid].token) {
+          return accounts[activeLoginid].token;
+        }
+      }
+      if (clientAccountsStr) {
+        const accounts = JSON.parse(clientAccountsStr);
+        const firstKey = Object.keys(accounts)[0];
+        if (firstKey && accounts[firstKey].token) {
+          return accounts[firstKey].token;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Check standard fallback keys
     const directKeys = ['config.token', 'user_token', 'token', 'authToken', 'active_token'];
     for (const k of directKeys) {
       const val = localStorage.getItem(k);
@@ -89,15 +110,7 @@ export class AITradingEngine {
         return val.trim();
       }
     }
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key) {
-        const val = localStorage.getItem(key);
-        if (val && (key.includes('token') || key.includes('auth'))) {
-          return val.trim();
-        }
-      }
-    }
+
     return '';
   }
 
@@ -107,7 +120,7 @@ export class AITradingEngine {
     if (token) {
       this.ws.send(JSON.stringify({ authorize: token }));
     } else {
-      this.callback(this.stats, 'Error: No active login token found. Please sign in.');
+      this.callback(this.stats, 'Error: No active account token found. Please sign in on the platform.');
       this.stopTrading();
     }
   }
@@ -118,7 +131,7 @@ export class AITradingEngine {
     if (msgType === 'authorize') {
       if (data.authorize) {
         this.isAuthorized = true;
-        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Executing initial trade on ${this.currentSymbol}...`);
+        this.callback(this.stats, `Authorized (${data.authorize.loginid} - ${data.authorize.is_virtual ? 'Demo' : 'Real'}). Executing initial trade...`);
         this.requestProposal();
       } else if (data.error) {
         this.callback(this.stats, `Authorization failed: ${data.error.message}`);
@@ -161,8 +174,8 @@ export class AITradingEngine {
           this.stats.wins++;
           this.stats.currentStake = this.settings.stake;
           this.stats.isRecovering = false;
-          this.currentSymbol = this.settings.symbol; // Return to first/main market on win
-          this.callback(this.stats, `WIN! Profit: +$${profit.toFixed(2)}. Returned to primary market [${this.currentSymbol}] & base stake $${this.settings.stake}.`);
+          this.currentSymbol = this.settings.symbol; // Return to primary market on win
+          this.callback(this.stats, `WIN! Profit: +$${profit.toFixed(2)}. Returned to primary market [${this.currentSymbol}].`);
         } else {
           this.stats.losses++;
           if (this.settings.useRecovery) {
