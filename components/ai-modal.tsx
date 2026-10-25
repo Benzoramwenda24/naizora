@@ -11,6 +11,11 @@ export default function AIModal() {
   const [isTrading, setIsTrading] = useState(false);
   const [log, setLog] = useState<string>('Configure your AI settings and click trade.');
 
+  // Draggable Button Position State
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
   // Check authentication status on mount and storage changes
   useEffect(() => {
     const checkAuth = () => {
@@ -27,64 +32,6 @@ export default function AIModal() {
       setIsLoggedIn(userIsAuth);
     };
 
-    checkAuth();
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
-  }, []);
-  // Check authentication status on mount and storage changes
-  useEffect(() => {
-    const checkAuth = () => {
-      // Check standard Deriv / White-label session storage keys
-      const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
-      const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
-      
-      // Also check if any key in localStorage contains active user data or tokens
-      const hasAuthData = Object.keys(localStorage).some(
-        (key) => (key.includes('token') || key.includes('client') || key.includes('account')) && localStorage.getItem(key)
-      );
-
-      const userIsAuth = Boolean(activeLogin || token || hasAuthData);
-      setIsLoggedIn(userIsAuth);
-    };
-
-    checkAuth();
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
-  }, []);
-
-  // User Settings State
-  const [settings, setSettings] = useState<AISettings>({
-    symbol: 'R_100',
-    stake: 10,
-    tradeType: 'MATCHES',
-    barrier: 5,
-    useEntryCondition: true,
-    entryDigit: 5,
-    martingaleMultiplier: 2.0,
-    takeProfit: 50,
-    stopLoss: 20,
-    useRecovery: true,
-  });
-
-  const [stats, setStats] = useState<TradeStats>({
-    totalTrades: 0,
-    wins: 0,
-    losses: 0,
-    totalProfit: 0,
-    currentStake: 10,
-    isRecovering: false,
-    status: 'IDLE',
-  });
-
-  const [engineInstance, setEngineInstance] = useState<AITradingEngine | null>(null);
-
-  // Check authentication status on mount and storage changes
-  useEffect(() => {
-    const checkAuth = () => {
-      const activeLogin = localStorage.getItem('active_loginid');
-      const hasToken = Object.keys(localStorage).some((k) => k.includes('token') || k.includes('client'));
-      setIsLoggedIn(Boolean(activeLogin || hasToken));
-    };
     checkAuth();
     window.addEventListener('storage', checkAuth);
     return () => window.removeEventListener('storage', checkAuth);
@@ -140,6 +87,31 @@ export default function AIModal() {
       setIsOpen(!isOpen);
     }
   };
+
+  const [settings, setSettings] = useState<AISettings>({
+    symbol: 'R_100',
+    stake: 10,
+    tradeType: 'MATCHES',
+    barrier: 5,
+    useEntryCondition: true,
+    entryDigit: 5,
+    martingaleMultiplier: 2.0,
+    takeProfit: 50,
+    stopLoss: 20,
+    useRecovery: true,
+  });
+
+  const [stats, setStats] = useState<TradeStats>({
+    totalTrades: 0,
+    wins: 0,
+    losses: 0,
+    totalProfit: 0,
+    currentStake: 10,
+    isRecovering: false,
+    status: 'IDLE',
+  });
+
+  const [engineInstance, setEngineInstance] = useState<AITradingEngine | null>(null);
 
   const handleToggleTrade = () => {
     if (isTrading) {
