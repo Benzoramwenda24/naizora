@@ -5,12 +5,24 @@ import React, { useState, useEffect } from 'react';
 
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Your Official Deriv API App ID with 3% Markup configuration
   const DERIV_APP_ID = '34KU2t7T2qJh7u1Pi6p5Y';
+
+  // Auto-dismiss auth prompt after 8 seconds
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showAuthPrompt) {
+      timer = setTimeout(() => {
+        setShowAuthPrompt(false);
+      }, 8000);
+    }
+    return () => clearTimeout(timer);
+  }, [showAuthPrompt]);
 
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
@@ -81,13 +93,26 @@ export default function AIModal() {
 
   const handleButtonClick = () => {
     if (isDragging) return;
-    setIsOpen(!isOpen);
+
+    // Strict check: verify if user is logged into Naizora
+    const { token } = getToken();
+    const isLoggedin = Boolean(token && token.trim() !== '');
+
+    if (!isLoggedin) {
+      // If NOT logged in, block access and show Naizora login prompt instead of redirecting
+      setIsOpen(false);
+      setShowAuthPrompt(true);
+    } else {
+      // If LOGGED IN, open the DBot Launch Hub normally
+      setShowAuthPrompt(false);
+      setIsOpen(!isOpen);
+    }
   };
 
   const handleLaunchDBot = () => {
     const { token, loginid } = getToken();
     
-    // Directs straight to the official DBot page, passing your App ID and user session token
+    // Directs to DBot with App ID and user session token for auto-login & commission tracking
     let dbotUrl = `https://bot.deriv.com/?app_id=${DERIV_APP_ID}`;
     if (token) {
       dbotUrl += `&token=${token}&acct1=${loginid}`;
@@ -146,7 +171,28 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Modal Hub */}
+      {/* Naizora Authentication Prompt Modal (Shown only if user is NOT logged in) */}
+      {showAuthPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg shadow-md">
+              AI
+            </div>
+            <h3 className="font-bold text-lg text-emerald-400">Naizora Account Required</h3>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Please log in to your <strong className="text-emerald-400">Naizora</strong> account before launching the AI trading assistant.
+            </p>
+            <button
+              onClick={() => setShowAuthPrompt(false)}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all shadow-md"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* DBot Studio Hub Modal (Shown ONLY for Logged-in Users) */}
       {isOpen && (
         <div className="fixed bottom-28 right-6 z-50 w-[380px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md animate-fadeIn">
           {/* Header */}
