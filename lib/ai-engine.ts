@@ -1,4 +1,5 @@
 // lib/ai-engine.ts
+
 export type TradeCategory = 'MATCHES' | 'DIFFERS' | 'OVER' | 'UNDER' | 'EVEN' | 'ODD';
 
 export interface AISettings {
@@ -26,15 +27,15 @@ export interface TradeStats {
 
 export class AITradingEngine {
   private settings: AISettings;
-  private onUpdate: (stats: TradeStats, log: string) => void;
-  private ws: any = null;
+  private callback: (stats: TradeStats, log: string) => void;
   private stats: TradeStats;
+  private ws: WebSocket | null = null;
   private isRunning: boolean = false;
-  private currentProposalId: string | null = null;
+  private isContractActive: boolean = false;
 
-  constructor(settings: AISettings, onUpdate: (stats: TradeStats, log: string) => void) {
+  constructor(settings: AISettings, callback: (stats: TradeStats, log: string) => void) {
     this.settings = settings;
-    this.onUpdate = onUpdate;
+    this.callback = callback;
     this.stats = {
       totalTrades: 0,
       wins: 0,
@@ -46,164 +47,173 @@ export class AITradingEngine {
     };
   }
 
-  public startTrading(ws: any) {
-    this.ws = ws;
+  public startTrading(wsInstance: WebSocket) {
+    this.ws = wsInstance;
     this.isRunning = true;
+    this.isContractActive = false;
     this.stats.status = 'RUNNING';
-    this.onUpdate(this.stats, 'AI Engine active. Waiting for entry digit signal...');
+    this.callback(this.stats, `Engine started. Waiting for entry digit [${this.settings.entryDigit}]...`);
 
-    if (this.ws && this.ws.readyState === 1) {
+    if (this.ws.readyState === WebSocket.OPEN) {
       this.subscribeTicks();
-    } else if (this.ws) {
-      this.ws.onopen = () => this.subscribeTicks();
+    } else {
+      this.ws.onopen = () => {
+        this.subscribeTicks();
+      };
     }
 
-    if (this.ws) {
-      this.ws.onmessage = (event: any) => this.handleMessage(event);
-    }
-  }
-
-  public stopTrading() {
-    this.isRunning = false;
-    this.stats.status = 'STOPPED';
-    this.onUpdate(this.stats, 'Trading stopped by user.');
-    if (this.ws && this.ws.readyState === 1) {
-      this.ws.send(JSON.stringify({ forget_all: 'ticks' }));
-    }
+    this.ws.onmessage = (event: MessageEvent) => {
+      if (!this.isRunning) return;
+      try {
+        const data = JSON.parse(event.data);
+        this.handleMessage(data);
+      } catch (e) {
+        console.error('Parsing error:', e);
+      }
+    };
   }
 
   private subscribeTicks() {
-    if (!this.ws || !this.isRunning) return;
-    this.ws.send(
-      JSON.stringify({
-        ticks: this.settings.symbol,
-        subscribe: 1,
-      })
-    );
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify({ ticks: this.settings.symbol, subscribe: 1 }));
   }
 
-  private handleMessage(event: any) {
-    if (!this.isRunning) return;
-    let data: any;
-    try {
-      data = JSON.parse(event.data);
-    } catch {
-      return;
-    }
+  private handleMessage(data: any) {
+    const msgType = data.msg_type;
 
-    if (data.msg_type === 'tick') {
+    if (msgType === 'tick') {
       const tick = data.tick;
       if (!tick || !tick.quote) return;
+
       const priceStr = tick.quote.toString();
       const lastDigit = parseInt(priceStr.slice(-1), 10);
 
-      this.onUpdate(
+      if (this.isContractActive) {
+        return; // Wait until current contract finishes settling before checking next entry
+      }
+
+      this.callback(
         this.stats,
-        `Tick: ${tick.quote} | Last Digit: ${lastDigit} | Target: ${this.settings.entryDigit}`
+        `Market: ${this.settings.symbol} | Price: ${tick.quote} | Last Digit: ${lastDigit} (Target Entry: ${this.settings.entryDigit})`
       );
 
-      if (this.settings.useEntryCondition) {
-        if (lastDigit === this.settings.entryDigit) {
-          this.executeTrade();
-        }
-      } else {
+      // Check Entry Digit Condition strictly
+      if (lastDigit === this.settings.entryDigit && !this.isContractActive) {
         this.executeTrade();
       }
-    } else if (data.msg_type === 'proposal') {
-      if (data.proposal) {
-        this.currentProposalId = data.proposal.id;
-        this.buyProposal(this.currentProposalId);
+    } else if (msgType === 'proposal') {
+      if (data.proposal && data.proposal.id && this.isRunning && !this.isContractActive) {
+        this.buyContract(data.proposal.id);
       } else if (data.error) {
-        this.onUpdate(this.stats, `Proposal Error: ${data.error.message}`);
+        this.callback(this.stats, `Proposal error: ${data.error.message}`);
+        this.isContractActive = false;
       }
-    } else if (data.msg_type === 'buy') {
+    } else if (msgType === 'buy') {
       if (data.buy) {
-        this.onUpdate(this.stats, `Trade Executed! ID: ${data.buy.contract_id}`);
+        this.isContractActive = true;
+        // Subscribe to contract status updates
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ proposal_open_contract: 1, contract_id: data.buy.contract_id, subscribe: 1 }));
+        }
+        this.callback(this.stats, `Trade executed! Contract ID: ${data.buy.contract_id}. Waiting result...`);
       } else if (data.error) {
-        this.onUpdate(this.stats, `Buy Error: ${data.error.message}`);
+        this.callback(this.stats, `Buy error: ${data.error.message}`);
+        this.isContractActive = false;
       }
-    } else if (data.msg_type === 'proposal_open_contract') {
-      const contract = data.proposal_open_contract;
-      if (contract && contract.is_sold) {
-        const profit = contract.profit;
-        this.stats.totalTrades += 1;
+    } else if (msgType === 'proposal_open_contract') {
+      const poc = data.proposal_open_contract;
+      if (poc && poc.is_sold) {
+        const profit = parseFloat(poc.profit || 0);
+        const won = profit > 0;
+
+        this.stats.totalTrades++;
         this.stats.totalProfit += profit;
 
-        if (profit >= 0) {
-          this.stats.wins += 1;
+        if (won) {
+          this.stats.wins++;
           this.stats.currentStake = this.settings.stake;
           this.stats.isRecovering = false;
-          this.onUpdate(this.stats, `Win! +$${profit.toFixed(2)}. Reset stake.`);
+          this.callback(this.stats, `WIN! Profit: +$${profit.toFixed(2)}. Resetting stake to $${this.settings.stake}.`);
         } else {
-          this.stats.losses += 1;
-          this.stats.isRecovering = true;
+          this.stats.losses++;
           if (this.settings.useRecovery) {
-            this.stats.currentStake *= this.settings.martingaleMultiplier;
-            this.onUpdate(
-              this.stats,
-              `Loss: -$${Math.abs(profit).toFixed(2)}. Recovery Stake: $${this.stats.currentStake.toFixed(2)}`
-            );
+            this.stats.currentStake = parseFloat((this.stats.currentStake * this.settings.martingaleMultiplier).toFixed(2));
+            this.stats.isRecovering = true;
           }
+          this.callback(this.stats, `LOSS: -$${Math.abs(profit).toFixed(2)}. Applying Martingale stake: $${this.stats.currentStake}`);
         }
 
-        if (this.stats.totalProfit >= this.settings.takeProfit) {
+        this.isContractActive = false;
+
+        // Check Take Profit
+        if (this.settings.takeProfit > 0 && this.stats.totalProfit >= this.settings.takeProfit) {
           this.stats.status = 'TP_HIT';
-          this.onUpdate(this.stats, `Take Profit Reached! $${this.stats.totalProfit.toFixed(2)}`);
+          this.callback(this.stats, `Take Profit Reached! Total P/L: +$${this.stats.totalProfit.toFixed(2)}`);
           this.stopTrading();
-        } else if (this.stats.totalProfit <= -this.settings.stopLoss) {
-          this.stats.status = 'SL_HIT';
-          this.onUpdate(this.stats, `Stop Loss Reached! $${this.stats.totalProfit.toFixed(2)}`);
-          this.stopTrading();
+          return;
         }
+
+        // Check Stop Loss
+        if (this.settings.stopLoss > 0 && this.stats.totalProfit <= -Math.abs(this.settings.stopLoss)) {
+          this.stats.status = 'SL_HIT';
+          this.callback(this.stats, `Stop Loss Reached! Total P/L: -$${Math.abs(this.stats.totalProfit).toFixed(2)}`);
+          this.stopTrading();
+          return;
+        }
+
+        this.callback(this.stats, `Waiting for entry digit [${this.settings.entryDigit}]...`);
       }
     }
   }
 
   private executeTrade() {
-    if (!this.ws || !this.currentProposalId) {
-      this.requestProposal();
-    } else {
-      this.buyProposal(this.currentProposalId);
-    }
-  }
-
-  private requestProposal() {
-    if (!this.ws) return;
-    const { symbol, tradeType, barrier } = this.settings;
-    const stake = this.stats.currentStake;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive) return;
 
     let contractType = 'DIGITMATCH';
-    if (tradeType === 'DIFFERS') contractType = 'DIGITDIFF';
-    if (tradeType === 'OVER') contractType = 'DIGITOVER';
-    if (tradeType === 'UNDER') contractType = 'DIGITUNDER';
-    if (tradeType === 'EVEN') contractType = 'DIGITEVEN';
-    if (tradeType === 'ODD') contractType = 'DIGITODD';
+    if (this.settings.tradeType === 'DIFFERS') contractType = 'DIGITDIFF';
+    else if (this.settings.tradeType === 'OVER') contractType = 'DIGITOVER';
+    else if (this.settings.tradeType === 'UNDER') contractType = 'DIGITUNDER';
+    else if (this.settings.tradeType === 'EVEN') contractType = 'DIGITEVEN';
+    else if (this.settings.tradeType === 'ODD') contractType = 'DIGITODD';
 
     const proposalReq: any = {
       proposal: 1,
-      amount: stake,
+      amount: this.stats.currentStake,
       basis: 'stake',
       currency: 'USD',
-      symbol: symbol,
-      contract_type: contractType,
+      symbol: this.settings.symbol,
       duration: 1,
       duration_unit: 't',
+      contract_type: contractType,
     };
 
-    if (!['EVEN', 'ODD'].includes(tradeType)) {
-      proposalReq.barrier = barrier;
+    if (!['EVEN', 'ODD'].includes(this.settings.tradeType)) {
+      proposalReq.barrier = this.settings.barrier.toString();
     }
 
+    this.callback(this.stats, `Entry digit [${this.settings.entryDigit}] matched! Sending order for $${this.stats.currentStake}...`);
     this.ws.send(JSON.stringify(proposalReq));
   }
 
-  private buyProposal(proposalId: string) {
-    if (!this.ws) return;
+  private buyContract(proposalId: string) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(
       JSON.stringify({
         buy: proposalId,
         price: this.stats.currentStake,
       })
     );
+  }
+
+  public stopTrading() {
+    this.isRunning = false;
+    this.isContractActive = false;
+    if (this.stats.status === 'RUNNING') {
+      this.stats.status = 'STOPPED';
+    }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ forget_all: 'ticks' }));
+    }
+    this.callback(this.stats, 'Trading stopped by user.');
   }
 }
