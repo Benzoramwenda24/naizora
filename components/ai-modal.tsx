@@ -9,9 +9,8 @@ export default function AIModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // REPLACE THIS with your official Deriv Partner Affiliate Tracking URL
-  // e.g., "https://track.deriv.com/_YOUR_ID_/v" or your DBot partner link
-  const DERIV_PARTNER_URL = 'https://bot.deriv.com'; 
+  // Your Official Deriv API App ID with 3% Markup configuration
+  const DERIV_APP_ID = '34KU2t7T2qJh7u1Pi6p5Y';
 
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
@@ -60,9 +59,12 @@ export default function AIModal() {
     setIsOpen(!isOpen);
   };
 
-  const handleLaunchDBot = () => {
-    // Opens official DBOT securely in a new tab tagged with your partner link
-    window.open(DERIV_PARTNER_URL, '_blank');
+  const handleLaunchAuthRedirect = () => {
+    // Deriv OAuth authorization URL tied to your app ID and 3% markup
+    const oauthUrl = `https://oauth.deriv.com/oauth2/authorize?app_id=${DERIV_APP_ID}&brand=deriv`;
+    
+    // Redirects user securely to Deriv while linking their session to your Naizora app
+    window.open(oauthUrl, '_blank');
     setIsOpen(false);
   };
 
@@ -115,14 +117,14 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Professional Partner Launch Modal */}
+      {/* Modal Hub */}
       {isOpen && (
         <div className="fixed bottom-28 right-6 z-50 w-[380px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md animate-fadeIn">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 bg-[#111622] border-b border-gray-800">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <h3 className="font-bold text-sm tracking-wider uppercase text-emerald-400">Deriv DBot Studio Hub</h3>
+              <h3 className="font-bold text-sm tracking-wider uppercase text-emerald-400">Naizora AI Trading Hub</h3>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-lg font-bold">✕</button>
           </div>
@@ -135,21 +137,21 @@ export default function AIModal() {
             </div>
 
             <div className="space-y-2">
-              <h4 className="font-bold text-base text-white">Launch Full DBot Workspace</h4>
+              <h4 className="font-bold text-base text-white">Connect & Trade via Naizora</h4>
               <p className="text-xs text-gray-300 leading-relaxed">
-                Open the official Deriv DBot builder in a dedicated window to configure your strategies and execute automated trades smoothly.
+                Launch your automated trading workspace in a secure dedicated window connected directly through your Naizora session.
               </p>
             </div>
 
             <button
-              onClick={handleLaunchDBot}
+              onClick={handleLaunchAuthRedirect}
               className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
             >
-              <span>Open DBot Studio ↗</span>
+              <span>Launch Trading Workspace ↗</span>
             </button>
 
             <p className="text-[10px] text-gray-500 italic">
-              Powered by Deriv API & secured under your partner tracking session.
+              Secured under Deriv API App ID: {DERIV_APP_ID}
             </p>
           </div>
         </div>
