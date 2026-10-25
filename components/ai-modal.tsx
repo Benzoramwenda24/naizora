@@ -55,6 +55,40 @@ export default function AIModal() {
     };
   }, []);
 
+  const [settings, setSettings] = useState<AISettings>({
+    symbol: 'R_100',
+    recoverySymbol: 'R_75',
+    stake: 10,
+    tradeType: 'MATCHES',
+    barrier: 5,
+    martingaleMultiplier: 2.0,
+    takeProfit: 50,
+    stopLoss: 20,
+    useRecovery: true,
+  });
+
+  // Bi-directional Market Synchronization with website
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const activeSym = localStorage.getItem('active_symbol') || localStorage.getItem('selected_market');
+      if (activeSym && activeSym !== settings.symbol) {
+        setSettings(prev => ({ ...prev, symbol: activeSym }));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [settings.symbol]);
+
+  const handleMarketChange = (newSymbol: string) => {
+    setSettings({ ...settings, symbol: newSymbol });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('active_symbol', newSymbol);
+      localStorage.setItem('selected_market', newSymbol);
+      window.dispatchEvent(new CustomEvent('naizora_market_change', { detail: newSymbol }));
+      window.dispatchEvent(new Event('storage'));
+    }
+  };
+
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
@@ -117,27 +151,6 @@ export default function AIModal() {
     }
   };
 
-  const [settings, setSettings] = useState<AISettings>({
-    symbol: 'R_100',
-    recoverySymbol: 'R_75',
-    stake: 10,
-    tradeType: 'MATCHES',
-    barrier: 5,
-    martingaleMultiplier: 2.0,
-    takeProfit: 50,
-    stopLoss: 20,
-    useRecovery: true,
-  });
-
-  // Sync market selection with website chart/display when primary market changes
-  const handleMarketChange = (newSymbol: string) => {
-    setSettings({ ...settings, symbol: newSymbol });
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('active_symbol', newSymbol);
-      window.dispatchEvent(new CustomEvent('naizora_market_change', { detail: newSymbol }));
-    }
-  };
-
   const [stats, setStats] = useState<TradeStats>({
     totalTrades: 0,
     wins: 0,
@@ -154,10 +167,9 @@ export default function AIModal() {
     if (isTrading) {
       engineInstance?.stopTrading();
       setIsTrading(false);
-      setLog('Trading stopped by user.');
+      setLog('Bot stopped by user.');
     } else {
       setIsTrading(true);
-      const globalWS = (window as unknown as { derivWS?: WebSocket }).derivWS || new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
 
       const engine = new AITradingEngine(settings, (updatedStats, logMsg) => {
         setStats({ ...updatedStats });
@@ -168,7 +180,7 @@ export default function AIModal() {
       });
 
       setEngineInstance(engine);
-      engine.startTrading(globalWS);
+      engine.startTrading();
     }
   };
 
