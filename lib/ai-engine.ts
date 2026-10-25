@@ -28,7 +28,7 @@ export interface TradeStats {
 export class AITradingEngine {
   private settings: AISettings;
   private onUpdate: (stats: TradeStats, log: string) => void;
-  private ws: any | null = null;
+  private ws: any = null;
   private stats: TradeStats;
   private isRunning: boolean = false;
   private currentProposalId: string | null = null;
@@ -85,10 +85,16 @@ export class AITradingEngine {
 
   private handleMessage(event: any) {
     if (!this.isRunning) return;
-    const data = JSON.parse(event.data);
+    let data: any;
+    try {
+      data = JSON.parse(event.data);
+    } catch {
+      return;
+    }
 
     if (data.msg_type === 'tick') {
       const tick = data.tick;
+      if (!tick || !tick.quote) return;
       const priceStr = tick.quote.toString();
       const lastDigit = parseInt(priceStr.slice(-1), 10);
 
@@ -174,7 +180,7 @@ export class AITradingEngine {
     if (tradeType === 'EVEN') contractType = 'DIGITEVEN';
     if (tradeType === 'ODD') contractType = 'DIGITODD';
 
-    const proposalReq: Record<string, unknown> = {
+    const proposalReq: any = {
       proposal: 1,
       amount: stake,
       basis: 'stake',
