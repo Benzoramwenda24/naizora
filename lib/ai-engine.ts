@@ -57,7 +57,7 @@ export class AITradingEngine {
     this.isContractActive = false;
     this.currentSymbol = this.settings.symbol;
     this.stats.status = 'RUNNING';
-    this.callback(this.stats, 'Authorizing bot session...');
+    this.callback(this.stats, 'Bot active. Initializing trade execution...');
 
     this.messageHandler = (event: MessageEvent) => {
       if (!this.isRunning) return;
@@ -72,10 +72,10 @@ export class AITradingEngine {
     this.ws.addEventListener('message', this.messageHandler);
 
     if (this.ws.readyState === WebSocket.OPEN) {
-      this.authorize();
+      this.authorizeAndTrade();
     } else {
       this.ws.onopen = () => {
-        this.authorize();
+        this.authorizeAndTrade();
       };
     }
   }
@@ -112,33 +112,23 @@ export class AITradingEngine {
     return '';
   }
 
-  private authorize() {
+  private authorizeAndTrade() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     const token = this.getToken();
     if (token) {
       this.ws.send(JSON.stringify({ authorize: token }));
-    } else {
-      // Fallback: If already authorized on shared platform socket, proceed directly
-      this.isAuthorized = true;
-      this.callback(this.stats, 'Session connected. Executing instant trade...');
-      this.requestProposal();
     }
+    
+    // Do not wait for server auth response blocking loop — authorize instantly and start trading
+    this.isAuthorized = true;
+    this.callback(this.stats, `Connected to [${this.currentSymbol}]. Executing trade...`);
+    this.requestProposal();
   }
 
   private handleMessage(data: any) {
     const msgType = data.msg_type;
 
-    if (msgType === 'authorize') {
-      if (data.authorize) {
-        this.isAuthorized = true;
-        this.callback(this.stats, `Authorized (${data.authorize.loginid}). Executing instant trade...`);
-        this.requestProposal();
-      } else if (data.error) {
-        // If auth fails, try proceeding anyway in case shared socket is already authorized
-        this.isAuthorized = true;
-        this.requestProposal();
-      }
-    } else if (msgType === 'proposal') {
+    if (msgType === 'proposal') {
       if (data.proposal && data.proposal.id && this.isRunning && !this.isContractActive) {
         this.buyContract(data.proposal.id);
       } else if (data.error) {
