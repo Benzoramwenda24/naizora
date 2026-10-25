@@ -5,22 +5,13 @@ import React, { useState, useEffect } from 'react';
 
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [dbotUrl, setDbotUrl] = useState('https://bot.deriv.com');
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Auto-dismiss auth notification prompt after 10 seconds
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (showAuthPrompt) {
-      timer = setTimeout(() => {
-        setShowAuthPrompt(false);
-      }, 10000);
-    }
-    return () => clearTimeout(timer);
-  }, [showAuthPrompt]);
+  // REPLACE THIS with your official Deriv Partner Affiliate Tracking URL
+  // e.g., "https://track.deriv.com/_YOUR_ID_/v" or your DBot partner link
+  const DERIV_PARTNER_URL = 'https://bot.deriv.com'; 
 
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
@@ -64,49 +55,15 @@ export default function AIModal() {
     };
   }, [isDragging, dragOffset]);
 
-  const getToken = (): { token: string; loginid: string } => {
-    if (typeof window === 'undefined') return { token: '', loginid: '' };
-    try {
-      const activeLoginid = localStorage.getItem('active_loginid');
-      const clientAccountsStr = localStorage.getItem('client.accounts');
-      if (clientAccountsStr && activeLoginid) {
-        const accounts = JSON.parse(clientAccountsStr);
-        if (accounts[activeLoginid] && accounts[activeLoginid].token) {
-          return { token: accounts[activeLoginid].token, loginid: activeLoginid };
-        }
-      }
-      if (clientAccountsStr) {
-        const accounts = JSON.parse(clientAccountsStr);
-        const firstKey = Object.keys(accounts)[0];
-        if (firstKey && accounts[firstKey].token) {
-          return { token: accounts[firstKey].token, loginid: firstKey };
-        }
-      }
-    } catch (e) {}
-
-    const directToken = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token') || '';
-    const directLoginid = localStorage.getItem('active_loginid') || '';
-    return { token: directToken, loginid: directLoginid };
-  };
-
   const handleButtonClick = () => {
     if (isDragging) return;
+    setIsOpen(!isOpen);
+  };
 
-    const { token, loginid } = getToken();
-    const userAuthenticated = Boolean(token && token.trim() !== '');
-
-    if (!userAuthenticated) {
-      setIsOpen(false);
-      setShowAuthPrompt(true); // Show notification prompt if not logged in
-    } else {
-      setShowAuthPrompt(false);
-      
-      // Construct the Deriv Bot URL with token and account ID so it auto-logs in inside the iframe
-      const targetUrl = `https://bot.deriv.com/?token=${token}&acct1=${loginid}`;
-      setDbotUrl(targetUrl);
-      
-      setIsOpen(true); // Open centered DBot modal
-    }
+  const handleLaunchDBot = () => {
+    // Opens official DBOT securely in a new tab tagged with your partner link
+    window.open(DERIV_PARTNER_URL, '_blank');
+    setIsOpen(false);
   };
 
   return (
@@ -158,71 +115,42 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Auto-Dismissing Authentication Notification Prompt */}
-      {showAuthPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg shadow-md">
-              AI
-            </div>
-            <h3 className="font-bold text-lg text-emerald-400">Authentication Required</h3>
-            <p className="text-xs text-gray-300 leading-relaxed">
-              Please click the <strong className="text-emerald-400">Log in</strong> button on the top right side of our website to continue using the AI trading assistant.
-            </p>
-            <p className="text-[10px] text-gray-500 italic">This notification will close automatically in 10 seconds.</p>
-            <button
-              onClick={() => setShowAuthPrompt(false)}
-              className="w-full py-2.5 bg-[#111622] hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs tracking-wide transition-all border border-gray-700"
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Centered Large DBot Workspace Modal (For Logged-in Users) */}
+      {/* Professional Partner Launch Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="w-full max-w-5xl h-[85vh] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-[#111622] border-b border-gray-800">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-                <h3 className="font-bold text-sm tracking-wider uppercase text-emerald-400">Deriv DBot Studio (On-Site Workspace)</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => window.open(dbotUrl, '_blank')}
-                  className="text-xs bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-all font-medium"
-                >
-                  Pop Out ↗
-                </button>
-                <button 
-                  onClick={() => setIsOpen(false)} 
-                  className="text-gray-400 hover:text-white text-xl font-bold px-2 py-0.5 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-all"
-                >
-                  ✕
-                </button>
-              </div>
+        <div className="fixed bottom-28 right-6 z-50 w-[380px] max-w-[92vw] bg-[#0A0D14] text-white rounded-2xl shadow-2xl border border-gray-800 overflow-hidden backdrop-blur-md animate-fadeIn">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 bg-[#111622] border-b border-gray-800">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <h3 className="font-bold text-sm tracking-wider uppercase text-emerald-400">Deriv DBot Studio Hub</h3>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white text-lg font-bold">✕</button>
+          </div>
+
+          <div className="p-6 space-y-5 text-center">
+            <div className="w-14 h-14 rounded-full bg-[#0B192C] border border-emerald-500/50 flex items-center justify-center mx-auto text-emerald-400 shadow-lg">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
             </div>
 
-            {/* Embedded DBot Iframe Container with Auto-Login Token */}
-            <div className="flex-1 w-full bg-black relative">
-              <iframe
-                src={dbotUrl}
-                className="w-full h-full border-0"
-                title="Deriv DBot"
-                loading="lazy"
-              />
+            <div className="space-y-2">
+              <h4 className="font-bold text-base text-white">Launch Full DBot Workspace</h4>
+              <p className="text-xs text-gray-300 leading-relaxed">
+                Open the official Deriv DBot builder in a dedicated window to configure your strategies and execute automated trades smoothly.
+              </p>
             </div>
 
-            {/* Footer Note */}
-            <div className="px-6 py-3 bg-[#111622] border-t border-gray-800 text-xs text-gray-400 flex justify-between items-center">
-              <span>Configure your strategies, set parameters, and execute trades comfortably.</span>
-              <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> Active Trading Session
-              </span>
-            </div>
+            <button
+              onClick={handleLaunchDBot}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wider uppercase transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
+            >
+              <span>Open DBot Studio ↗</span>
+            </button>
+
+            <p className="text-[10px] text-gray-500 italic">
+              Powered by Deriv API & secured under your partner tracking session.
+            </p>
           </div>
         </div>
       )}
