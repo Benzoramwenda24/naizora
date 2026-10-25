@@ -213,8 +213,8 @@ export default function AIModal() {
               <button
                 onClick={() => {
                   setShowAuthPrompt(false);
-                  // Redirect to Deriv OAuth Login / Signup page with App ID 1089
-                  window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=1089&l=EN&brand=deriv';
+                  // Correct Deriv OAuth authorization endpoint for Login & Signup
+                  window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=1089';
                 }}
                 className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all"
               >
@@ -373,7 +373,7 @@ export default function AIModal() {
                 <label className="block text-xs text-rose-400 mb-1">Stop Loss ($)</label>
                 <input
                   type="number"
-                  disabled= {isTrading}
+                  disabled={isTrading}
                   value={settings.stopLoss}
                   onChange={(e) => setSettings({ ...settings, stopLoss: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-[#111622] border border-rose-900/50 rounded-lg px-3 py-2 text-white focus:border-rose-500 outline-none"
@@ -406,7 +406,7 @@ export default function AIModal() {
               {log}
             </div>
 
-    {/* Action Button: CLICK TO TRADE / CLICK TO STOP */}
+            {/* Action Button: CLICK TO TRADE / CLICK TO STOP */}
             <button
               onClick={handleToggleTrade}
               className={`w-full py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 shadow-lg ${
