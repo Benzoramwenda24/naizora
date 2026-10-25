@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 export default function AIModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [dbotUrl, setDbotUrl] = useState('https://bot.deriv.com');
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -63,26 +64,48 @@ export default function AIModal() {
     };
   }, [isDragging, dragOffset]);
 
+  const getToken = (): { token: string; loginid: string } => {
+    if (typeof window === 'undefined') return { token: '', loginid: '' };
+    try {
+      const activeLoginid = localStorage.getItem('active_loginid');
+      const clientAccountsStr = localStorage.getItem('client.accounts');
+      if (clientAccountsStr && activeLoginid) {
+        const accounts = JSON.parse(clientAccountsStr);
+        if (accounts[activeLoginid] && accounts[activeLoginid].token) {
+          return { token: accounts[activeLoginid].token, loginid: activeLoginid };
+        }
+      }
+      if (clientAccountsStr) {
+        const accounts = JSON.parse(clientAccountsStr);
+        const firstKey = Object.keys(accounts)[0];
+        if (firstKey && accounts[firstKey].token) {
+          return { token: accounts[firstKey].token, loginid: firstKey };
+        }
+      }
+    } catch (e) {}
+
+    const directToken = localStorage.getItem('config.token') || localStorage.getItem('user_token') || localStorage.getItem('token') || '';
+    const directLoginid = localStorage.getItem('active_loginid') || '';
+    return { token: directToken, loginid: directLoginid };
+  };
+
   const handleButtonClick = () => {
     if (isDragging) return;
 
-    // Check if user is logged into the site
-    const activeLogin = typeof window !== 'undefined' ? localStorage.getItem('active_loginid') : null;
-    const clientAccounts = typeof window !== 'undefined' ? localStorage.getItem('client.accounts') : null;
-    const token = typeof window !== 'undefined' ? localStorage.getItem('config.token') || localStorage.getItem('user_token') : null;
-
-    const userAuthenticated = Boolean(
-      (activeLogin && activeLogin.trim() !== '') ||
-      (clientAccounts && clientAccounts.length > 5) ||
-      (token && token.trim() !== '')
-    );
+    const { token, loginid } = getToken();
+    const userAuthenticated = Boolean(token && token.trim() !== '');
 
     if (!userAuthenticated) {
       setIsOpen(false);
       setShowAuthPrompt(true); // Show notification prompt if not logged in
     } else {
       setShowAuthPrompt(false);
-      setIsOpen(!isOpen); // Open centered DBot modal if logged in
+      
+      // Construct the Deriv Bot URL with token and account ID so it auto-logs in inside the iframe
+      const targetUrl = `https://bot.deriv.com/?token=${token}&acct1=${loginid}`;
+      setDbotUrl(targetUrl);
+      
+      setIsOpen(true); // Open centered DBot modal
     }
   };
 
@@ -169,7 +192,7 @@ export default function AIModal() {
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => window.open('https://bot.deriv.com', '_blank')}
+                  onClick={() => window.open(dbotUrl, '_blank')}
                   className="text-xs bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition-all font-medium"
                 >
                   Pop Out ↗
@@ -183,10 +206,10 @@ export default function AIModal() {
               </div>
             </div>
 
-            {/* Embedded DBot Iframe Container */}
+            {/* Embedded DBot Iframe Container with Auto-Login Token */}
             <div className="flex-1 w-full bg-black relative">
               <iframe
-                src="https://bot.deriv.com"
+                src={dbotUrl}
                 className="w-full h-full border-0"
                 title="Deriv DBot"
                 loading="lazy"
