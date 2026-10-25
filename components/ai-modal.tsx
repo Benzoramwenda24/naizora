@@ -16,10 +16,25 @@ export default function AIModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Check authentication status safely on client mount
+  // Check authentication status safely on client mount & handle OAuth tokens from URL if returned
   useEffect(() => {
     const checkAuth = () => {
       if (typeof window === 'undefined') return;
+
+      // Capture token from URL hash if redirected back from Deriv OAuth
+      const hash = window.location.hash;
+      if (hash && hash.includes('acct1')) {
+        const params = new URLSearchParams(hash.replace('#', '?'));
+        const token1 = params.get('token1');
+        const acct1 = params.get('acct1');
+        if (token1 && acct1) {
+          localStorage.setItem('config.token', token1);
+          localStorage.setItem('active_loginid', acct1);
+          // Clean URL hash
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+
       const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
       const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
       
@@ -192,15 +207,14 @@ export default function AIModal() {
             </div>
             <h3 className="font-bold text-lg text-emerald-400">Authentication Required</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              You must be signed in to your account to configure and run the AI Trading Assistant. Please sign in or sign up to continue.
+              You must be signed in to your Deriv account to configure and run the AI Trading Assistant. Sign in or create an account to continue.
             </p>
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 onClick={() => {
                   setShowAuthPrompt(false);
-                  const loginBtn = document.querySelector('button[class*="login"], a[href*="login"]') as HTMLElement;
-                  if (loginBtn) loginBtn.click();
-                  else window.location.href = '/login';
+                  // Redirect to Deriv OAuth Login / Signup page with App ID 1089
+                  window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=1089&l=EN&brand=deriv';
                 }}
                 className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all"
               >
@@ -359,7 +373,7 @@ export default function AIModal() {
                 <label className="block text-xs text-rose-400 mb-1">Stop Loss ($)</label>
                 <input
                   type="number"
-                  disabled={isTrading}
+                  disabled= {isTrading}
                   value={settings.stopLoss}
                   onChange={(e) => setSettings({ ...settings, stopLoss: parseFloat(e.target.value) || 0 })}
                   className="w-full bg-[#111622] border border-rose-900/50 rounded-lg px-3 py-2 text-white focus:border-rose-500 outline-none"
@@ -392,7 +406,7 @@ export default function AIModal() {
               {log}
             </div>
 
-            {/* Action Button: CLICK TO TRADE / CLICK TO STOP */}
+    {/* Action Button: CLICK TO TRADE / CLICK TO STOP */}
             <button
               onClick={handleToggleTrade}
               className={`w-full py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 shadow-lg ${
