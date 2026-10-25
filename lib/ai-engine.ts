@@ -57,7 +57,6 @@ export class AITradingEngine {
     this.stats.status = 'RUNNING';
     this.callback(this.stats, 'Connecting & authorizing with Deriv API...');
 
-    // Use addEventListener to avoid breaking existing website websocket handlers
     this.messageHandler = (event: MessageEvent) => {
       if (!this.isRunning) return;
       try {
@@ -71,10 +70,10 @@ export class AITradingEngine {
     this.ws.addEventListener('message', this.messageHandler);
 
     if (this.ws.readyState === WebSocket.OPEN) {
-      this.authorizeAndSubscribe();
+      this.authorize();
     } else {
       this.ws.onopen = () => {
-        this.authorizeAndSubscribe();
+        this.authorize();
       };
     }
   }
@@ -82,7 +81,6 @@ export class AITradingEngine {
   private getToken(): string {
     if (typeof window === 'undefined') return '';
 
-    // 1. Check standard direct keys
     const directKeys = ['config.token', 'user_token', 'token', 'authToken', 'active_token'];
     for (const k of directKeys) {
       const val = localStorage.getItem(k);
@@ -91,7 +89,6 @@ export class AITradingEngine {
       }
     }
 
-    // 2. Scan all localStorage items for tokens or client.accounts JSON structures
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key) {
@@ -107,12 +104,6 @@ export class AITradingEngine {
                 if (k.includes('token') && typeof parsed[k] === 'string') {
                   return parsed[k].trim();
                 }
-                if (typeof parsed[k] === 'object' && parsed[k] !== null) {
-                  const nested = parsed[k].token || parsed[k].access_token;
-                  if (typeof nested === 'string' && nested.trim() !== '') {
-                    return nested.trim();
-                  }
-                }
               }
             }
           } catch (e) {}
@@ -122,23 +113,15 @@ export class AITradingEngine {
     return '';
   }
 
-  private authorizeAndSubscribe() {
+  private authorize() {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
     const token = this.getToken();
-
     if (token) {
       this.ws.send(JSON.stringify({ authorize: token }));
     } else {
-      this.callback(this.stats, 'Error: No active login token found. Please ensure you are signed in.');
+      this.callback(this.stats, 'Error: No active login token found. Please sign in.');
       this.stopTrading();
     }
-  }
-
-  private subscribeTicks() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    this.ws.send(JSON.stringify({ ticks: this.settings.symbol, subscribe: 1 }));
-    this.callback(this.stats, `Subscribed to ${this.settings.symbol}. Waiting for entry digit [${this.settings.entryDigit}]...`);
   }
 
   private handleMessage(data: any) {
@@ -147,32 +130,12 @@ export class AITradingEngine {
     if (msgType === 'authorize') {
       if (data.authorize) {
         this.isAuthorized = true;
-        this.callback(this.stats, `Authorized as ${data.authorize.loginid}. Monitoring live ticks...`);
-        this.subscribeTicks();
+        this.callback(this.stats, `Authorized as ${data.authorize.loginid}. Starting instant trades...`);
+        // Trigger the very first trade immediately upon authorization
+        this.requestProposal();
       } else if (data.error) {
         this.callback(this.stats, `Authorization failed: ${data.error.message}`);
         this.stopTrading();
-      }
-    } else if (msgType === 'tick') {
-      if (!this.isAuthorized) return;
-      const tick = data.tick;
-      if (!tick || !tick.quote) return;
-
-      const priceStr = tick.quote.toString();
-      const lastDigit = parseInt(priceStr.slice(-1), 10);
-
-      if (this.isContractActive) {
-        return; 
-      }
-
-      this.callback(
-        this.stats,
-        `Market: ${this.settings.symbol} | Price: ${tick.quote} | Last Digit: ${lastDigit} (Target Entry: ${this.settings.entryDigit})`
-      );
-
-      // Check Entry Digit Condition strictly
-      if (lastDigit === this.settings.entryDigit && !this.isContractActive) {
-        this.executeTrade();
       }
     } else if (msgType === 'proposal') {
       if (data.proposal && data.proposal.id && this.isRunning && !this.isContractActive) {
@@ -180,6 +143,10 @@ export class AITradingEngine {
       } else if (data.error) {
         this.callback(this.stats, `Proposal error: ${data.error.message}`);
         this.isContractActive = false;
+        // Retry next trade after a short delay on error
+        setTimeout(() => {
+          if (this.isRunning && !this.isContractActive) this.requestProposal();
+        }, 1500);
       }
     } else if (msgType === 'buy') {
       if (data.buy) {
@@ -187,10 +154,13 @@ export class AITradingEngine {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ proposal_open_contract: 1, contract_id: data.buy.contract_id, subscribe: 1 }));
         }
-        this.callback(this.stats, `Trade executed! Contract ID: ${data.buy.contract_id}. Waiting result...`);
+        this.callback(this.stats, `Trade placed! Stake: $${this.stats.currentStake.toFixed(2)}. Waiting for result...`);
       } else if (data.error) {
         this.callback(this.stats, `Buy error: ${data.error.message}`);
         this.isContractActive = false;
+        setTimeout(() => {
+          if (this.isRunning && !this.isContractActive) this.requestProposal();
+        }, 1500);
       }
     } else if (msgType === 'proposal_open_contract') {
       const poc = data.proposal_open_contract;
@@ -203,16 +173,16 @@ export class AITradingEngine {
 
         if (won) {
           this.stats.wins++;
-          this.stats.currentStake = this.settings.stake;
+          this.stats.currentStake = this.settings.stake; // Return to first/base stake on win
           this.stats.isRecovering = false;
-          this.callback(this.stats, `WIN! Profit: +$${profit.toFixed(2)}. Resetting stake to $${this.settings.stake}.`);
+          this.callback(this.stats, `WIN! Profit: +$${profit.toFixed(2)}. Resetting stake to base: $${this.settings.stake}.`);
         } else {
           this.stats.losses++;
           if (this.settings.useRecovery) {
             this.stats.currentStake = parseFloat((this.stats.currentStake * this.settings.martingaleMultiplier).toFixed(2));
             this.stats.isRecovering = true;
           }
-          this.callback(this.stats, `LOSS: -$${Math.abs(profit).toFixed(2)}. Applying Martingale stake: $${this.stats.currentStake}`);
+          this.callback(this.stats, `LOSS: -$${Math.abs(profit).toFixed(2)}. Applying recovery stake: $${this.stats.currentStake}.`);
         }
 
         this.isContractActive = false;
@@ -220,7 +190,7 @@ export class AITradingEngine {
         // Check Take Profit
         if (this.settings.takeProfit > 0 && this.stats.totalProfit >= this.settings.takeProfit) {
           this.stats.status = 'TP_HIT';
-          this.callback(this.stats, `Take Profit Reached! Total P/L: +$${this.stats.totalProfit.toFixed(2)}`);
+          this.callback(this.stats, `Take Profit Reached! Net P/L: +$${this.stats.totalProfit.toFixed(2)}`);
           this.stopTrading();
           return;
         }
@@ -228,18 +198,23 @@ export class AITradingEngine {
         // Check Stop Loss
         if (this.settings.stopLoss > 0 && this.stats.totalProfit <= -Math.abs(this.settings.stopLoss)) {
           this.stats.status = 'SL_HIT';
-          this.callback(this.stats, `Stop Loss Reached! Total P/L: -$${Math.abs(this.stats.totalProfit).toFixed(2)}`);
+          this.callback(this.stats, `Stop Loss Reached! Net P/L: -$${Math.abs(this.stats.totalProfit).toFixed(2)}`);
           this.stopTrading();
           return;
         }
 
-        this.callback(this.stats, `Waiting for entry digit [${this.settings.entryDigit}]...`);
+        // Instantly trigger next trade round
+        setTimeout(() => {
+          if (this.isRunning && !this.isContractActive) {
+            this.requestProposal();
+          }
+        }, 500);
       }
     }
   }
 
-  private executeTrade() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive || !this.isAuthorized) return;
+  private requestProposal() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || this.isContractActive || !this.isAuthorized || !this.isRunning) return;
 
     let contractType = 'DIGITMATCH';
     if (this.settings.tradeType === 'DIFFERS') contractType = 'DIGITDIFF';
@@ -263,7 +238,7 @@ export class AITradingEngine {
       proposalReq.barrier = this.settings.barrier.toString();
     }
 
-    this.callback(this.stats, `Entry digit [${this.settings.entryDigit}] matched! Sending order for $${this.stats.currentStake}...`);
+    this.callback(this.stats, `Requesting trade proposal (Stake: $${this.stats.currentStake.2 || this.stats.currentStake})...`);
     this.ws.send(JSON.stringify(proposalReq));
   }
 
@@ -287,9 +262,6 @@ export class AITradingEngine {
     if (this.ws && this.messageHandler) {
       this.ws.removeEventListener('message', this.messageHandler);
       this.messageHandler = null;
-    }
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ forget_all: 'ticks' }));
     }
     this.callback(this.stats, 'Trading stopped by user.');
   }
