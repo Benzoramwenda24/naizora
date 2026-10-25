@@ -1,5 +1,4 @@
 // lib/ai-engine.ts
-
 export type TradeCategory = 'MATCHES' | 'DIFFERS' | 'OVER' | 'UNDER' | 'EVEN' | 'ODD';
 
 export interface AISettings {
