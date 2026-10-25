@@ -16,24 +16,21 @@ export default function AIModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Check authentication status and handle tokens returned from Deriv OAuth redirect
+  // Auto-dismiss auth notification prompt after 10 seconds
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (showAuthPrompt) {
+      timer = setTimeout(() => {
+        setShowAuthPrompt(false);
+      }, 10000); // 10 seconds
+    }
+    return () => clearTimeout(timer);
+  }, [showAuthPrompt]);
+
+  // Check authentication status safely on client mount
   useEffect(() => {
     const checkAuth = () => {
       if (typeof window === 'undefined') return;
-
-      // Capture token and account ID returned from Deriv OAuth in URL hash
-      const hash = window.location.hash;
-      if (hash && hash.includes('acct1')) {
-        const params = new URLSearchParams(hash.replace('#', '?'));
-        const token1 = params.get('token1');
-        const acct1 = params.get('acct1');
-        if (token1 && acct1) {
-          localStorage.setItem('config.token', token1);
-          localStorage.setItem('active_loginid', acct1);
-          // Clear hash from URL cleanly
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      }
 
       const activeLogin = localStorage.getItem('active_loginid') || localStorage.getItem('client.accounts');
       const token = localStorage.getItem('config.token') || localStorage.getItem('user_token');
@@ -198,35 +195,24 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Authentication Prompt Modal */}
+      {/* Auto-Dismissing Notification Prompt (Exits after 10s) */}
       {showAuthPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
             <div className="w-12 h-12 rounded-full bg-[#0B192C] border border-emerald-500 flex items-center justify-center mx-auto text-emerald-400 font-bold text-lg">
               AI
             </div>
-            <h3 className="font-bold text-lg text-emerald-400">Deriv Authentication</h3>
+            <h3 className="font-bold text-lg text-emerald-400">Authentication Required</h3>
             <p className="text-xs text-gray-300 leading-relaxed">
-              Authenticate securely via Deriv to access the AI Trading Assistant on Naizora. If you don&apos;t have an account, Deriv will guide you through creation.
+              Please click the <strong className="text-emerald-400">Log in</strong> or <strong className="text-emerald-400">Sign up</strong> buttons on the top right header of this website to continue.
             </p>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setShowAuthPrompt(false);
-                  // Explicitly use oauth.deriv.com endpoint with hardcoded redirect uri
-                  window.location.href = 'https://oauth.deriv.com/oauth2/authorize?app_id=1089&redirect_uri=https://www.naizora.co.ke';
-                }}
-                className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs tracking-wide transition-all"
-              >
-                Sign In / Up
-              </button>
-              <button
-                onClick={() => setShowAuthPrompt(false)}
-                className="py-2.5 bg-[#111622] hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs tracking-wide transition-all border border-gray-700"
-              >
-                Cancel
-              </button>
-            </div>
+            <p className="text-[10px] text-gray-500 italic">This notification will close automatically in 10 seconds.</p>
+            <button
+              onClick={() => setShowAuthPrompt(false)}
+              className="w-full py-2.5 bg-[#111622] hover:bg-gray-800 text-gray-300 rounded-xl font-bold text-xs tracking-wide transition-all border border-gray-700"
+            >
+              Got it
+            </button>
           </div>
         </div>
       )}
