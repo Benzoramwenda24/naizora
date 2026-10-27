@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React from "react";
 
 // Live 3% Markup Deriv Bot Platform
 const LIVE_BOT_URL = "https://naizoraai-benzoramwenda24-4891.vercel.app";
@@ -10,86 +10,67 @@ interface AIModalProps {
   onClose?: () => void;
 }
 
-export const AIModal: React.FC<AIModalProps> = () => {
-  const [position, setPosition] = useState({ x: window.innerWidth - 90, y: window.innerHeight - 140 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0, hasMoved: false });
-
-  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    
-    dragRef.current = {
-      startX: clientX,
-      startY: clientY,
-      initialX: position.x,
-      initialY: position.y,
-      hasMoved: false,
-    };
-    setIsDragging(true);
+export const AIModal: React.FC<AIModalProps> = ({ isOpen = true, onClose }) => {
+  const handleLaunchBot = () => {
+    window.open(LIVE_BOT_URL, "_blank", "noopener,noreferrer");
+    if (onClose) onClose();
   };
 
-  const handleTouchMove = (e: TouchEvent | MouseEvent) => {
-    if (!isDragging) return;
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-
-    const dx = clientX - dragRef.current.startX;
-    const dy = clientY - dragRef.current.startY;
-
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      dragRef.current.hasMoved = true;
-    }
-
-    setPosition({
-      x: Math.max(20, Math.min(window.innerWidth - 80, dragRef.current.initialX + dx)),
-      y: Math.max(20, Math.min(window.innerHeight - 80, dragRef.current.initialY + dy)),
-    });
-  };
-
-  const handleTouchEnd = () => {
-    if (!isDragging) return;
-    setIsDragging(false);
-    
-    // If it wasn't dragged, treat it as a click to open the bot
-    if (!dragRef.current.hasMoved) {
-      window.open(LIVE_BOT_URL, "_blank", "noopener,noreferrer");
-    }
-  };
-
-  React.useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => handleTouchMove(e);
-    const onMouseUp = () => handleTouchEnd();
-    const onTouchMove = (e: TouchEvent) => handleTouchMove(e);
-    const onTouchEnd = () => handleTouchEnd();
-
-    if (isDragging) {
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
-      window.addEventListener("touchmove", onTouchMove);
-      window.addEventListener("touchend", onTouchEnd);
-    }
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [isDragging]);
+  if (!isOpen) return null;
 
   return (
-    <div
-      style={{ left: `${position.x}px`, top: `${position.y}px` }}
-      className="fixed z-50 cursor-pointer select-none touch-none"
-      onMouseDown={handleTouchStart}
-      onTouchStart={handleTouchStart}
-    >
-      {/* Glowing Floating Round Button */}
-      <div className="relative flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-600 via-teal-500 to-emerald-400 text-white shadow-2xl shadow-emerald-500/50 animate-pulse hover:scale-110 transition-transform">
-        <div className="absolute inset-0 rounded-full border-2 border-white/40 animate-ping opacity-75 pointer-events-none" />
-        <div className="flex flex-col items-center justify-center text-center">
-          <span className="text-xs font-black tracking-tighter leading-none">USE</span>
-          <span className="text-xs font-black tracking-tighter leading-none">AI</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-2xl text-white">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+            <h3 className="text-xl font-bold tracking-tight">NAiZORA AI Trading Suite</h3>
+          </div>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors text-xl font-semibold px-2"
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Content Body */}
+        <div className="py-6 space-y-4">
+          <p className="text-slate-300 text-sm leading-relaxed">
+            Access automated synthetic indices trading strategies, real-time analytics, and automated bot execution powered by NAiZORA AI.
+          </p>
+          <div className="p-4 rounded-xl bg-slate-800/50 border border-slate-700/50 space-y-2">
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Platform</span>
+              <span className="text-emerald-400 font-medium">Deriv DBot Engine</span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Status</span>
+              <span className="text-slate-200">Live & Ready</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <button
+            onClick={handleLaunchBot}
+            className="w-full py-3 px-5 rounded-xl font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-center cursor-pointer"
+          >
+            Launch Trading Suite 🚀
+          </button>
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="w-full sm:w-auto py-3 px-5 rounded-xl font-medium text-slate-300 hover:bg-slate-800 transition-colors text-center"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </div>
     </div>
