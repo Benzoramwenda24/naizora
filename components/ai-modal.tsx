@@ -9,8 +9,8 @@ export default function AIModal() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // Your updated Deriv API App ID with 3% Markup configuration for commissions
-  const DERIV_APP_ID = '34MZuYRMbUoTUHnkqhRuv';
+  // Your new custom bot deployment URL
+  const LIVE_BOT_URL = 'https://naizoraai.vercel.app/';
 
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
@@ -54,55 +54,11 @@ export default function AIModal() {
     };
   }, [isDragging, dragOffset]);
 
-  // Precise session check for Naizora / Deriv login state
-  const getSessionData = () => {
-    if (typeof window === 'undefined') return { token: '', loginid: '', isLoggedIn: false };
-    
-    try {
-      const activeLoginid = localStorage.getItem('active_loginid');
-      const clientAccountsStr = localStorage.getItem('client.accounts');
-      
-      if (clientAccountsStr && activeLoginid) {
-        const accounts = JSON.parse(clientAccountsStr);
-        if (accounts[activeLoginid] && accounts[activeLoginid].token) {
-          return {
-            token: accounts[activeLoginid].token,
-            loginid: activeLoginid,
-            isLoggedIn: true,
-          };
-        }
-      }
-      
-      // Fallback check for any active login ID or token
-      if (activeLoginid || localStorage.getItem('token') || localStorage.getItem('config.token')) {
-        return {
-          token: localStorage.getItem('token') || localStorage.getItem('config.token') || '',
-          loginid: activeLoginid || 'CR001',
-          isLoggedIn: true,
-        };
-      }
-    } catch (e) {}
-
-    return { token: '', loginid: '', isLoggedIn: false };
-  };
-
   const handleButtonClick = () => {
     if (isDragging) return;
 
-    const session = getSessionData();
-
-    if (!session.isLoggedIn) {
-      // NOT LOGGED IN: Block them and show the login requirement popup
-      setShowAuthPrompt(true);
-    } else {
-      // LOGGED IN: Open DBot immediately in a new tab with App ID & session token for commissions
-      setShowAuthPrompt(false);
-      let dbotUrl = `https://bot.deriv.com/?app_id=${DERIV_APP_ID}`;
-      if (session.token) {
-        dbotUrl += `&token=${session.token}&acct1=${session.loginid}`;
-      }
-      window.open(dbotUrl, '_blank');
-    }
+    // Instantly open your new custom bot application URL in a new tab
+    window.open(LIVE_BOT_URL, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -154,7 +110,7 @@ export default function AIModal() {
         </button>
       </div>
 
-      {/* Auth Prompt Modal (Shown ONLY for visitors who are NOT logged in) */}
+      {/* Auth Prompt Modal (Kept as fallback if needed) */}
       {showAuthPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="w-full max-w-sm bg-[#0A0D14] border border-emerald-500/40 rounded-2xl p-6 text-white text-center shadow-2xl space-y-4">
