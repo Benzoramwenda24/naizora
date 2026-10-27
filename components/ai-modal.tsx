@@ -20,7 +20,7 @@ export const AIModal: React.FC<AIModalProps> = ({ isOpen = false, onClose }) => 
 
   return (
     <>
-      {/* Original blinking/glowing Use AI Button */}
+      {/* Original Use AI Button */}
       <button
         onClick={handleButtonClick}
         className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/30 animate-pulse cursor-pointer"
@@ -60,5 +60,4 @@ export const AIModal: React.FC<AIModalProps> = ({ isOpen = false, onClose }) => 
   );
 };
 
-export direct export default AIModal;
 export default AIModal;
