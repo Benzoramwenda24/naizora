@@ -9,6 +9,7 @@ import '@/app/globals.css';
 import './globals.css';
 import './custom.css';
 import AIModal from '@/components/ai-modal';
+import BonusWealthButton from '@/components/BonusWealthButton';
 
 export function generateMetadata(): Metadata {
   const faviconUri = buildFaviconUri();
@@ -35,9 +36,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <LogoSrcProvider logoSrc={logoSrc}>{children}</LogoSrcProvider>
           </TemplateLayout>
         </TemplateI18nProvider>
-        
+         
         {/* Floating AI Trading Assistant Modal */}
         <AIModal />
+
+        {/* Bonus Wealth Rise Floating Action Button */}
+        <BonusWealthButton />
       </body>
     </html>
   );
