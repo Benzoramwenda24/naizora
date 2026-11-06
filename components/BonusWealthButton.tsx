@@ -11,7 +11,7 @@ export default function BonusWealthButton() {
 
         {/* Main Floating Button */}
         <a
-          href="https://wealth.naizora.co.ke"
+          href="https://naizora-wealthrise.vercel.app/"
           target="_blank"
           rel="noopener noreferrer"
           className="relative flex items-center justify-center w-24 h-24 bg-red-600 text-white text-center font-bold text-xs p-2 rounded-full shadow-2xl hover:bg-red-700 transition-transform transform hover:scale-110 animate-bounce cursor-pointer border-2 border-white"
