@@ -5,19 +5,34 @@ import React, { useState, useRef } from "react";
 export default function BonusWealthButton() {
   const [position, setPosition] = useState({ x: 24, y: 24 });
   const isDragging = useRef(false);
+  const hasMoved = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const pointerStartPos = useRef({ x: 0, y: 0 });
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDragging.current = true;
+    hasMoved.current = false;
     dragStart.current = {
       x: e.clientX - position.x,
       y: e.clientY - position.y,
     };
+    pointerStartPos.current = { x: e.clientX, y: e.clientY };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
+    
+    // Check if the user moved more than 5 pixels to count it as a drag
+    const moveDistance = Math.hypot(
+      e.clientX - pointerStartPos.current.x,
+      e.clientY - pointerStartPos.current.y
+    );
+
+    if (moveDistance > 5) {
+      hasMoved.current = true;
+    }
+
     const newX = Math.max(10, Math.min(window.innerWidth - 70, e.clientX - dragStart.current.x));
     const newY = Math.max(10, Math.min(window.innerHeight - 70, e.clientY - dragStart.current.y));
     setPosition({ x: newX, y: newY });
@@ -51,8 +66,8 @@ export default function BonusWealthButton() {
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => {
-            // Prevent link navigation if the user was dragging the button
-            if (Math.abs(e.clientX - dragStart.current.x) > 5) {
+            // Only block navigation if the user actually dragged the button around
+            if (hasMoved.current) {
               e.preventDefault();
             }
           }}
