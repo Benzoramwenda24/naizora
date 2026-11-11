@@ -10,7 +10,7 @@ export default function AIModal() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // Your new custom bot deployment URL
-  const LIVE_BOT_URL = 'https://naizoraai.vercel.app/';
+  const LIVE_BOT_URL = 'https://ai.naizora.co.ke/';
 
   // Handle Dragging (Mouse & Touch support)
   const handleTouchOrMouseDown = (clientX: number, clientY: number, target: HTMLElement) => {
