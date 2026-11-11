@@ -14,7 +14,7 @@ export default function BonusWealthButton() {
 
         {/* Main Floating Button (Smaller and compact for mobile screens) */}
         <a
-          href="https://https://wealth.naizora.co.ke/"
+          href="https://wealth.naizora.co.ke/"
           target="_blank"
           rel="noopener noreferrer"
           className="relative flex items-center justify-center w-16 h-16 bg-red-600 text-white text-center font-bold text-[10px] leading-tight p-1 rounded-full shadow-2xl hover:bg-red-700 transition-transform transform hover:scale-110 animate-bounce cursor-pointer border-2 border-white"
